@@ -1,30 +1,28 @@
-from pydantic import BaseModel
-from datetime import datetime
-from typing import Optional
-from decimal import Decimal
+from pydantic import BaseModel, Field, field_validator
+from typing import Literal
+
+class PayoutDestination(BaseModel):
+    type: Literal["bank_account"]  # extend later (wallet, card, etc.)
+    last4: str = Field(..., min_length=4, max_length=4)
 
 class PayoutCreate(BaseModel):
-    amount: Decimal
-    currency: str
-    recipient_name: str
-    recipient_account: str
-    description: Optional[str] = None
+    amount: int = Field(..., gt=0)  # minor units
+    currency: str = Field(..., min_length=3, max_length=3)
+    destination: PayoutDestination
+
+    @field_validator("currency")
+    @classmethod
+    def _upper_iso(cls, v: str) -> str:
+        v = v.upper()
+        if not v.isalpha() or len(v) != 3:
+            raise ValueError("invalid currency code")
+        return v
 
 class PayoutOut(BaseModel):
-    id: int
-    amount: Decimal
-    currency: str
-    recipient_name: str
-    recipient_account: str
-    description: Optional[str] = None
+    id: str
     status: str
-    created_at: datetime
-    
-    class Config:
-        from_attributes = True
+    amount: int
+    currency: str
 
 class PayoutList(BaseModel):
-    payouts: list[PayoutOut]
-    total: int
-    page: int
-    size: int
+    items: list[PayoutOut]

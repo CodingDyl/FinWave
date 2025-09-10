@@ -1,22 +1,17 @@
-from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBearer
+from typing import Generator
+from fastapi import Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
-from app.core.database import get_db
+from app.db.session import get_session
 from app.models.user import User
 
-security = HTTPBearer()
+def get_db() -> Generator[Session, None, None]:
+    yield from get_session()
 
-def get_current_user(
-    db: Session = Depends(get_db),
-    token: str = Depends(security)
-) -> User:
-    """
-    Get current user from JWT token.
-    This is a placeholder implementation.
-    """
-    # TODO: Implement JWT token validation
-    # For now, raise not implemented
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="Authentication not implemented yet"
-    )
+def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
+    user_id = request.session.get("uid")
+    if not user_id:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="unauthorized")
+    user = db.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="unauthorized")
+    return user

@@ -1,0 +1,26 @@
+### Valid webhook delivery (fresh timestamp & valid signature)
+POST {{baseUrl}}/api/v1/webhooks/payouts
+Content-Type: application/json
+X-Timestamp: {{webhookTimestamp}}
+X-Signature: {{webhookSignature}}
+
+{
+  "type": "payout.succeeded",
+  "data": {
+    "payout_id": "po_01JVABCDXYZ",
+    "amount": 1000,
+    "currency": "ZAR",
+    "status": "succeeded"
+  }
+}
+
+### Rejected: old timestamp (expect 400)
+POST {{baseUrl}}/api/v1/webhooks/payouts
+Content-Type: application/json
+X-Timestamp: 1600000000
+X-Signature: v1=invalid
+
+{
+  "type": "payout.succeeded",
+  "data": { "payout_id": "po_01JVABCDXYZ" }
+}

@@ -4,12 +4,14 @@ from app.services.oauth import oauth, fetch_or_create_user
 from app.db.session import get_session
 from sqlalchemy.orm import Session
 from app.schemas.auth import MeOut
+from app.core.config import settings
 
 router = APIRouter()
 
 @router.get("/login")
 async def login(request: Request):
-    redirect_uri = request.url_for("auth_callback")
+    # Use the configured OAuth redirect URI
+    redirect_uri = settings.oauth_redirect_uri
     return await oauth.google.authorize_redirect(request, redirect_uri)
 
 @router.get("/callback", name="auth_callback")

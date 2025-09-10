@@ -5,8 +5,10 @@ from alembic import context
 
 from app.core.config import settings
 from app.db.base import Base
-# Import models so metadata is populated
-from app.models import user, payout, webhook_event  # noqa: F401
+# Ensure these imports register models with Base.metadata
+from app.models.user import User  # noqa: F401
+from app.models.payout import PayoutRequest  # noqa: F401
+from app.models.webhook_event import WebhookEvent  # noqa: F401
 
 config = context.config
 if config.config_file_name is not None:
@@ -21,6 +23,8 @@ def run_migrations_offline():
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
+        compare_type=True,
+        compare_server_default=True,
     )
     with context.begin_transaction():
         context.run_migrations()
@@ -32,7 +36,12 @@ def run_migrations_online():
         future=True,
     )
     with connectable.connect() as connection:
-        context.configure(connection=connection, target_metadata=target_metadata)
+        context.configure(
+            connection=connection,
+            target_metadata=target_metadata,
+            compare_type=True,
+            compare_server_default=True,
+        )
         with context.begin_transaction():
             context.run_migrations()
 

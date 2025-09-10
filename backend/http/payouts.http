@@ -1,0 +1,36 @@
+### Create payout (idempotent: first call)
+POST {{baseUrl}}/api/v1/payouts
+Content-Type: application/json
+Idempotency-Key: abc-123
+Cookie: {{sessionCookie}}
+
+{
+  "amount": 1000,
+  "currency": "ZAR",
+  "destination": { "type": "bank_account", "last4": "1234" },
+  "metadata": { "order_id": "ORD-1001" }
+}
+
+### Create payout (idempotent: same key returns same record)
+POST {{baseUrl}}/api/v1/payouts
+Content-Type: application/json
+Idempotency-Key: abc-123
+Cookie: {{sessionCookie}}
+
+{
+  "amount": 1000,
+  "currency": "ZAR",
+  "destination": { "type": "bank_account", "last4": "1234" }
+}
+
+### Create payout (new key -> new payout)
+POST {{baseUrl}}/api/v1/payouts
+Content-Type: application/json
+Idempotency-Key: def-456
+Cookie: {{sessionCookie}}
+
+{
+  "amount": 2500,
+  "currency": "ZAR",
+  "destination": { "type": "bank_account", "last4": "9988" }
+}

@@ -1,14 +1,17 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 from redis.asyncio import Redis
 from fastapi_limiter import FastAPILimiter
+from sqlalchemy.orm import Session
+from sqlalchemy import text
 
 from app.core.config import settings
 from app.core.logging import configure_logging
 from app.middleware.correlation import CorrelationIdMiddleware
 from app.middleware.errors import SafeErrorsMiddleware
 from app.api.v1.routes import auth, payouts, webhooks
+from app.db.session import get_session
 
 def create_app() -> FastAPI:
     configure_logging()
@@ -29,6 +32,36 @@ def create_app() -> FastAPI:
 
     app.add_middleware(CorrelationIdMiddleware)
     app.add_middleware(SafeErrorsMiddleware)
+
+    # --- Health endpoints ---
+    @app.get("/health", include_in_schema=False, tags=["health"])
+    async def health():
+        # Simple liveness probe
+        return {"ok": True, "service": "finwave-api", "version": app.version}
+
+    @app.get("/health/ready", include_in_schema=False, tags=["health"])
+    async def readiness(db: Session = Depends(get_session)):
+        # Deeper readiness check (DB + Redis if limiter is initialized)
+        checks = {"db": False, "redis": False}
+        try:
+            db.execute(text("SELECT 1"))
+            checks["db"] = True
+        except Exception:
+            checks["db"] = False
+
+        try:
+            redis = getattr(FastAPILimiter, "redis", None)
+            if redis:
+                await redis.ping()
+                checks["redis"] = True
+            else:
+                # If limiter isn't configured (e.g. in tests), don't fail readiness on Redis
+                checks["redis"] = True
+        except Exception:
+            checks["redis"] = False
+
+        return {"ok": all(checks.values()), **checks, "service": "finwave-api", "version": app.version}
+    # --- /Health endpoints ---
 
     app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
     app.include_router(payouts.router, prefix="/api/v1/payouts", tags=["payouts"])

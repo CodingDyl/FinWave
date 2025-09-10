@@ -1,0 +1,6 @@
+### Start Google OAuth (will redirect)
+GET {{baseUrl}}/auth/google/login
+
+### (Optional for local dev) If you added a dev helper endpoint to set a session cookie:
+# GET {{baseUrl}}/auth/dev-login?sub=test-sub&email=test@example.com
+# After running this once, copy the 'Set-Cookie' value into {{sessionCookie}} in _env.http

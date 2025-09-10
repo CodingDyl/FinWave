@@ -1,0 +1,190 @@
+@import "tailwindcss";
+@import '@fontsource-variable/inter/index.css';
+@import '@fontsource-variable/jetbrains-mono/index.css';
+
+/* Design tokens (HSL = easy theming) */
+@theme {
+    /* Colors (HSL without the hsl() wrapper; Tailwind wraps it for you) */
+    --color-background: 0 0% 100%;
+    --color-foreground: 222.2 47.4% 11.2%;
+  
+    --color-card: 0 0% 100%;
+    --color-card-foreground: 222.2 47.4% 11.2%;
+  
+    --color-popover: 0 0% 100%;
+    --color-popover-foreground: 222.2 47.4% 11.2%;
+  
+    /* Brand */
+    --color-primary: 201 94% 30%;              /* Finwave teal */
+    --color-primary-foreground: 210 40% 98%;
+  
+    --color-secondary: 210 40% 96.1%;
+    --color-secondary-foreground: 222.2 47.4% 11.2%;
+  
+    --color-muted: 210 40% 96.1%;
+    --color-muted-foreground: 215.4 16.3% 46.9%;
+  
+    --color-accent: 210 40% 96.1%;
+    --color-accent-foreground: 222.2 47.4% 11.2%;
+  
+    --color-destructive: 0 84.2% 60.2%;
+    --color-destructive-foreground: 210 40% 98%;
+  
+    --color-border: 214.3 31.8% 91.4%;
+    --color-input: 214.3 31.8% 91.4%;
+    --color-ring: 201 94% 30%;
+  
+    /* Radii */
+    --radius-sm: 0.5rem;
+    --radius: 0.75rem;
+    --radius-lg: 1rem;
+  
+    /* Fonts (optional; adjust to your stack) */
+    --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+  }
+  
+  /* Dark theme overrides (applies when you add .dark to <html> or <body>) */
+  @theme .dark {
+    --color-background: 222.2 84% 4.9%;
+    --color-foreground: 210 40% 98%;
+  
+    --color-card: 222.2 84% 4.9%;
+    --color-card-foreground: 210 40% 98%;
+  
+    --color-popover: 222.2 84% 4.9%;
+    --color-popover-foreground: 210 40% 98%;
+  
+    --color-primary: 201 94% 40%;
+    --color-primary-foreground: 222.2 47.4% 11.2%;
+  
+    --color-secondary: 217.2 32.6% 17.5%;
+    --color-secondary-foreground: 210 40% 98%;
+  
+    --color-muted: 217.2 32.6% 17.5%;
+    --color-muted-foreground: 215 20.2% 65.1%;
+  
+    --color-accent: 217.2 32.6% 17.5%;
+    --color-accent-foreground: 210 40% 98%;
+  
+    --color-destructive: 0 62.8% 30.6%;
+    --color-destructive-foreground: 210 40% 98%;
+  
+    --color-border: 217.2 32.6% 17.5%;
+    --color-input: 217.2 32.6% 17.5%;
+    --color-ring: 201 94% 40%;
+  }
+  
+  /* --- Base layer --- */
+  @layer base {
+    /* Make plain `border` pick up your token everywhere */
+    * { border-color: hsl(var(--color-border)); }
+  
+    html, body, #root { height: 100%; }
+    body { @apply bg-background text-foreground antialiased; }
+  
+    :root { color-scheme: light; }
+    .dark { color-scheme: dark; }
+  
+    /* Optional: font family */
+    body { font-family: var(--font-sans); }
+  }
+  
+  /* --- Example "component-level" utilities (optional) --- */
+  @layer components {
+    .btn {
+      @apply inline-flex items-center justify-center rounded-[var(--radius)]
+             px-4 h-10 border text-sm font-medium transition
+             focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring;
+    }
+    .btn-primary {
+      @apply bg-primary text-primary-foreground hover:opacity-90;
+    }
+    .btn-ghost {
+      @apply border-transparent hover:bg-accent hover:text-accent-foreground;
+    }
+    .card {
+      @apply rounded-[var(--radius-lg)] border bg-card text-card-foreground shadow-sm;
+    }
+    
+    /* Form elements */
+    .label {
+      @apply text-sm font-medium text-foreground;
+    }
+    .input {
+      @apply flex h-10 w-full rounded-[var(--radius)] border border-input bg-background px-3 py-2 text-sm 
+             ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium 
+             placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 
+             focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
+    }
+    .select {
+      @apply flex h-10 w-full items-center justify-between rounded-[var(--radius)] border border-input bg-background px-3 py-2 text-sm 
+             ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 
+             focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
+    }
+    .select option {
+      @apply bg-background text-foreground;
+    }
+    
+    /* Fix dropdown options visibility in dark mode */
+    select option {
+      background-color: hsl(var(--background)) !important;
+      color: hsl(var(--foreground)) !important;
+    }
+    
+    /* Additional styling for better dropdown contrast */
+    select:focus option {
+      background-color: hsl(var(--accent)) !important;
+      color: hsl(var(--accent-foreground)) !important;
+    }
+    
+    select option:checked {
+      background-color: hsl(var(--primary)) !important;
+      color: hsl(var(--primary-foreground)) !important;
+    }
+    
+    select option:hover {
+      background-color: hsl(var(--accent)) !important;
+      color: hsl(var(--accent-foreground)) !important;
+    }
+    
+    /* Force dark mode styling for select dropdowns */
+    .dark select option {
+      background-color: hsl(var(--background)) !important;
+      color: hsl(var(--foreground)) !important;
+    }
+    
+    .dark select option:checked {
+      background-color: hsl(var(--primary)) !important;
+      color: hsl(var(--primary-foreground)) !important;
+    }
+    
+    .dark select option:hover {
+      background-color: hsl(var(--accent)) !important;
+      color: hsl(var(--accent-foreground)) !important;
+    }
+  }
+
+  .btn:focus-visible,
+.input:focus-visible,
+.select:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px hsl(var(--ring) / 0.4);
+}
+
+@keyframes fade-in { from { opacity: 0 } to { opacity: 1 } }
+@keyframes slide-in-from-bottom-2 { from { transform: translateY(0.5rem) } to { transform: translateY(0) } }
+
+[data-state="open"].fade-in,
+.data-[state=open]\:fade-in {
+  animation: fade-in 150ms ease-out;
+}
+[data-state="open"].slide-in-from-bottom-2,
+.data-[state=open]\:slide-in-from-bottom-2 {
+  animation: slide-in-from-bottom-2 180ms ease-out;
+}
+
+@keyframes tw-indeterminate {
+    0%   { transform: translateX(-100%) scaleX(0.3); }
+    50%  { transform: translateX(0%)     scaleX(0.7); }
+    100% { transform: translateX(100%)  scaleX(0.3); }
+}  

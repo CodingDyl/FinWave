@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useToast } from "../toast/ToastProvider";
 import { ChevronDown } from "lucide-react";
+import api from "../../lib/api";
 
 type Destination = { type: "bank_account"; last4: string };
 export type CreatePayoutPayload = {
@@ -172,20 +173,9 @@ export default function CreatePayoutModal({ open, onClose, onCreated }: Props) {
 
     setSubmitting(true);
     try {
-      const res = await fetch("/api/v1/payouts", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Idempotency-Key": uuid(),
-        },
-        body: JSON.stringify(payload),
+      const { data } = await api.post("/api/v1/payouts", payload, {
+        idempotencyKey: uuid(),
       });
-
-      if (!res.ok) {
-        const msg = await safeError(res);
-        throw new Error(msg);
-      }
-      const data = await res.json();
       onCreated?.(data);
       onClose();
     } catch (err: any) {
@@ -355,11 +345,3 @@ export default function CreatePayoutModal({ open, onClose, onCreated }: Props) {
   );
 }
 
-async function safeError(res: Response) {
-  try {
-    const j: any = await res.json();
-    return j?.error?.message || res.statusText;
-  } catch {
-    return res.statusText;
-  }
-}

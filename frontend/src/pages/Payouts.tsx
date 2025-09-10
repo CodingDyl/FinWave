@@ -3,9 +3,8 @@ import DataTable, { type Column } from "../components/table/DataTable";
 import CreatePayoutModal from "../components/payouts/CreatePayoutModal";
 import { useToast } from "../components/toast/ToastProvider";
 import { useDebouncedValue } from "../lib/useDebouncedValue";
-import { useGlobalLoading } from "../components/loading/GlobalLoading";
 import { ChevronDown } from "lucide-react";
-import { fetchJSONCached, invalidate } from "../lib/fetchCache";
+import api from "../lib/api";
 import { downloadCsv } from "../lib/csv";
 
 /* ------------------------- Status filter dropdown (unchanged) ------------------------- */
@@ -13,7 +12,8 @@ import { downloadCsv } from "../lib/csv";
 const STATUS_OPTIONS = [
   { value: "all", label: "All", icon: "📊" },
   { value: "pending", label: "Pending", icon: "⏳" },
-  { value: "succeeded", label: "Succeeded", icon: "✅" },
+  { value: "processing", label: "Processing", icon: "🔄" },
+  { value: "paid", label: "Paid", icon: "✅" },
   { value: "failed", label: "Failed", icon: "❌" },
 ] as const;
 
@@ -86,7 +86,7 @@ type Payout = {
   amount: number; // cents
   currency: string;
   destination: { type: "bank_account"; last4: string };
-  status: "pending" | "succeeded" | "failed";
+  status: "pending" | "processing" | "paid" | "failed";
 };
 
 function formatMoney(cents: number, currency: string) {
@@ -101,7 +101,8 @@ function statusBadge(s: Payout["status"]) {
   const base = "inline-flex items-center rounded-full px-2 py-0.5 text-xs border";
   const by: Record<Payout["status"], string> = {
     pending: "bg-muted text-muted-foreground border-border",
-    succeeded: "bg-green-500/10 text-green-700 dark:text-green-300 border-green-500/30",
+    processing: "bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-500/30",
+    paid: "bg-green-500/10 text-green-700 dark:text-green-300 border-green-500/30",
     failed: "bg-destructive/10 text-destructive border-destructive/30",
   };
   return `${base} ${by[s]}`;
@@ -125,7 +126,6 @@ export default function Payouts() {
 
   const debounced = useDebouncedValue(query, 400);
   const toast = useToast();
-  const { wrap } = useGlobalLoading();
 
   // Visible columns persisted to localStorage
   const [visible, setVisible] = useState<Set<ColId>>(() => {
@@ -198,21 +198,16 @@ export default function Payouts() {
     [COLS, visible]
   );
 
-  /* ------------------------ Debounced server-side search + cache ------------------------ */
+  /* ------------------------ Data fetching + client-side filtering ------------------------ */
 
-  const buildUrl = () => {
-    const p = new URLSearchParams();
-    if (debounced.trim()) p.set("q", debounced.trim());
-    if (status !== "all") p.set("status", status);
-    p.set("limit", "250"); // tweak for your API
-    return `/api/v1/payouts?${p.toString()}`;
-  };
+  const [allPayouts, setAllPayouts] = useState<Payout[]>([]);
 
   async function fetchPayouts() {
     setLoading(true);
     try {
-      const { data } = await fetchJSONCached(buildUrl(), {}, 30_000, wrap);
-      setRows(Array.isArray(data) ? data : data?.data ?? []);
+      const { data } = await api.get("/api/v1/payouts", { cacheTTL: 30000 });
+      const payouts = Array.isArray(data) ? data : data?.items ?? [];
+      setAllPayouts(payouts);
     } catch (err: any) {
       toast.error({
         title: "Failed to load payouts",
@@ -223,14 +218,46 @@ export default function Payouts() {
     }
   }
 
-  // Initial + whenever query/status changes (debounced query)
+  // Filter payouts based on search query and status
+  const filteredPayouts = useMemo(() => {
+    let filtered = allPayouts;
+
+    // Filter by status
+    if (status !== "all") {
+      filtered = filtered.filter(payout => payout.status === status);
+    }
+
+    // Filter by search query
+    if (debounced.trim()) {
+      const query = debounced.toLowerCase().trim();
+      filtered = filtered.filter(payout => {
+        const amount = formatMoney(payout.amount, payout.currency).toLowerCase();
+        const destination = `bank •••• ${payout.destination.last4}`.toLowerCase();
+        const statusText = payout.status.toLowerCase();
+        const created = new Date(payout.created_at).toLocaleString().toLowerCase();
+        
+        return amount.includes(query) || 
+               destination.includes(query) || 
+               statusText.includes(query) || 
+               created.includes(query);
+      });
+    }
+
+    return filtered;
+  }, [allPayouts, status, debounced]);
+
+  // Update displayed rows when filtered data changes
+  useEffect(() => {
+    setRows(filteredPayouts);
+  }, [filteredPayouts]);
+
+  // Initial load
   useEffect(() => {
     fetchPayouts();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debounced, status]);
+  }, []);
 
   const onRefresh = () => {
-    invalidate("/api/v1/payouts");
+    // Cache will be invalidated by the api client
     fetchPayouts();
   };
 
@@ -243,8 +270,8 @@ export default function Payouts() {
       destination: apiResp.destination,
       status: apiResp.status ?? "pending",
     };
-    setRows((r) => [p, ...r]);
-    invalidate("/api/v1/payouts");
+    setAllPayouts((prev) => [p, ...prev]);
+    // Cache will be invalidated by the api client
     toast.success({
       title: "Payout created",
       description: `Queued ${formatMoney(p.amount, p.currency)} to •••• ${p.destination.last4}`,
@@ -256,7 +283,7 @@ export default function Payouts() {
   const exportCsv = () => {
     const visIds = ALL_IDS.filter((id) => visible.has(id) && id !== "actions");
     const headers = visIds.map((id) => COLS[id].header);
-    const body = rows.map((r) =>
+    const body = filteredPayouts.map((r) =>
       visIds.map((id) => {
         switch (id) {
           case "created":
@@ -281,7 +308,7 @@ export default function Payouts() {
         <div>
           <h1 className="text-lg font-semibold">Payouts</h1>
           <p className="text-sm text-muted-foreground">
-            Server-side search with caching, column visibility, and CSV export.
+            Client-side search and filtering with column visibility and CSV export.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -299,7 +326,7 @@ export default function Payouts() {
         <div className="relative flex-1 min-w-[220px]">
           <input
             className="input w-full pl-8"
-            placeholder="Search payouts… (server-side)"
+            placeholder="Search payouts…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
@@ -350,18 +377,12 @@ function ColumnsMenu({
   toggle,
   reset,
 }: {
-  visible: Set<"created" | "amount" | "destination" | "status" | "actions">;
-  toggle: (id: any) => void;
+  visible: Set<ColId>;
+  toggle: (id: ColId) => void;
   reset: () => void;
 }) {
   const [open, setOpen] = useState(false);
-  const ids: ("created" | "amount" | "destination" | "status" | "actions")[] = [
-    "created",
-    "amount",
-    "destination",
-    "status",
-    "actions",
-  ];
+  const ids: ColId[] = ["created", "amount", "destination", "status", "actions"];
   return (
     <div className="relative">
       <button className="btn btn-ghost" onClick={() => setOpen((o) => !o)}>

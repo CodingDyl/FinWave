@@ -1,0 +1,4 @@
+@baseUrl = http://localhost:8000
+@sessionCookie = session=REPLACE_ME_AFTER_LOGIN
+@webhookSignature = v1=replace_me
+@webhookTimestamp = 1736284800

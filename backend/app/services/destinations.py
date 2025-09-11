@@ -11,11 +11,22 @@ def create_bank_destination(db: Session, beneficiary_id: str, payload: Destinati
     if not beneficiary:
         raise ValueError("Beneficiary not found")
     
-    # Extract last4 from account number
-    last4 = payload.account_number[-4:] if len(payload.account_number) >= 4 else payload.account_number
+    # Extract last4 from account number or IBAN
+    if payload.account_number:
+        last4 = payload.account_number[-4:] if len(payload.account_number) >= 4 else payload.account_number
+    elif payload.iban:
+        # For IBAN, use last 4 characters
+        last4 = payload.iban[-4:] if len(payload.iban) >= 4 else payload.iban
+    else:
+        last4 = "****"
     
     # Generate label if not provided
-    label = payload.label or f"{payload.country} ••••{last4}"
+    if payload.label:
+        label = payload.label
+    elif payload.iban:
+        label = f"{payload.country} IBAN ••••{last4}"
+    else:
+        label = f"{payload.country} ••••{last4}"
     
     destination = PayoutDestination(
         beneficiary_id=beneficiary_id,
@@ -24,7 +35,11 @@ def create_bank_destination(db: Session, beneficiary_id: str, payload: Destinati
         last4=last4,
         currency=payload.currency.upper(),
         country=payload.country,
-        status=DestinationStatus.VERIFIED  # Set to verified in dev mode
+        status=DestinationStatus.VERIFIED,  # Set to verified in dev mode
+        account_number=payload.account_number,
+        routing_number=payload.routing_number,
+        iban=payload.iban,
+        bic=payload.bic
     )
     
     db.add(destination)
@@ -38,7 +53,11 @@ def create_bank_destination(db: Session, beneficiary_id: str, payload: Destinati
         last4=destination.last4,
         currency=destination.currency,
         country=destination.country,
-        status=destination.status.value
+        status=destination.status.value,
+        account_number=destination.account_number,
+        routing_number=destination.routing_number,
+        iban=destination.iban,
+        bic=destination.bic
     )
 
 
@@ -54,7 +73,11 @@ def list_destinations(db: Session, beneficiary_id: str) -> list[DestinationOut]:
             last4=d.last4,
             currency=d.currency,
             country=d.country,
-            status=d.status.value
+            status=d.status.value,
+            account_number=d.account_number,
+            routing_number=d.routing_number,
+            iban=d.iban,
+            bic=d.bic
         )
         for d in destinations
     ]

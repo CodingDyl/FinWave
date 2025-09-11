@@ -15,6 +15,10 @@ export type Destination = {
   currency: string;
   country?: string;
   status: "unverified" | "verified";
+  account_number?: string;
+  routing_number?: string;
+  iban?: string;
+  bic?: string;
 };
 
 export type PayoutCreate = {
@@ -38,4 +42,8 @@ export type Payout = {
   failure_message?: string;
   created_at: string;
   idempotency_key: string;
+  stripe_payout_id?: string;
+  stripe_balance_transaction?: string;
+  arrival_date?: string;
+  processed_at?: string;
 };

@@ -33,6 +33,12 @@ class PayoutRequest(Base):
     external_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
     failure_code: Mapped[str | None] = mapped_column(String(50), nullable=True)
     failure_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    
+    # Stripe-specific fields
+    stripe_payout_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    stripe_balance_transaction: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    arrival_date: Mapped["DateTime | None"] = mapped_column(DateTime(timezone=True), nullable=True)
+    processed_at: Mapped["DateTime | None"] = mapped_column(DateTime(timezone=True), nullable=True)
 
     created_at: Mapped["DateTime"] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped["DateTime"] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

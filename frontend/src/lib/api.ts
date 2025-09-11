@@ -157,5 +157,8 @@ export const createBankDestination = (beneficiaryId: string, payload: any) => ap
 export const updateDestination = (destinationId: string, payload: any) => api.put(`/api/v1/destinations/${destinationId}`, payload).then(r => r.data);
 export const deleteDestination = (destinationId: string) => api.delete(`/api/v1/destinations/${destinationId}`).then(r => r.data);
 export const createPayout = (payload: any) => api.post("/api/v1/payouts", payload, { idempotencyKey: "" }).then(r => r.data);
+export const processPayout = (payoutId: string) => api.post(`/api/v1/payouts/${payoutId}/process`).then(r => r.data);
+export const cancelPayout = (payoutId: string) => api.post(`/api/v1/payouts/${payoutId}/cancel`).then(r => r.data);
+export const getPayoutStatus = (payoutId: string) => api.get(`/api/v1/payouts/${payoutId}/status`).then(r => r.data);
 
 export default api;

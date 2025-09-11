@@ -33,6 +33,12 @@ class PayoutOut(BaseModel):
     failure_message: Optional[str] = None
     created_at: str
     idempotency_key: str
+    
+    # Stripe-specific fields
+    stripe_payout_id: Optional[str] = None
+    stripe_balance_transaction: Optional[str] = None
+    arrival_date: Optional[str] = None
+    processed_at: Optional[str] = None
 
     class Config:
         from_attributes = True

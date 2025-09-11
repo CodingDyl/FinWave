@@ -31,6 +31,12 @@ class PayoutDestination(Base):
     status: Mapped[DestinationStatus] = mapped_column(Enum(DestinationStatus), default=DestinationStatus.UNVERIFIED, nullable=False)
     external_token: Mapped[str | None] = mapped_column(String(255), nullable=True)  # For production tokenization
     
+    # Bank account details
+    account_number: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    routing_number: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    iban: Mapped[str | None] = mapped_column(String(34), nullable=True)  # IBAN can be up to 34 characters
+    bic: Mapped[str | None] = mapped_column(String(11), nullable=True)  # BIC/SWIFT code
+    
     created_at: Mapped["DateTime"] = mapped_column(DateTime(timezone=True), server_default=func.now())
     
     # Relationships

@@ -56,6 +56,8 @@ services:
       - FRONTEND_URL=http://localhost:5173
       - OAUTH_REDIRECT_URI=http://localhost:5173/api/v1/auth/callback
       - CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
+      - ENV_NAME=dev
+      - STRIPE_CONNECTED_ACCOUNT_ID=acct_1S6GC5K3YPv8GzMh
       - PYTHONPATH=/app/backend
     working_dir: /app/backend
     command: bash /app/backend/start.sh
@@ -83,6 +85,31 @@ services:
       - "5173:5173"
     depends_on: [api]
 
+  # Stripe CLI authentication (run once to login)
+  stripe-auth:
+    image: stripe/stripe-cli:latest
+    entrypoint: ["stripe"]
+    command: ["login"]
+    volumes:
+      - stripe_config:/root/.config/stripe
+    profiles: ["dev"]
+    stdin_open: true
+    tty: true
+
+  # Stripe CLI for webhook forwarding (development only)
+  stripe-cli:
+    image: stripe/stripe-cli:latest
+    entrypoint: ["stripe"]
+    command: ["listen", "--forward-to", "http://api:8000/api/v1/webhooks/stripe"]
+    ports:
+      - "12111:12111"
+    volumes:
+      - stripe_config:/root/.config/stripe
+    depends_on: [api]
+    profiles: ["dev"]  # Only run in development
+    restart: unless-stopped
+
 volumes:
   dbdata:
   web_node_modules: {}
+  stripe_config: {}

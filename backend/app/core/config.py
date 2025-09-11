@@ -4,6 +4,7 @@ from typing import List, Union
 
 class Settings(BaseSettings):
     app_env: str = Field(default="dev", alias="APP_ENV")
+    env_name: str = Field(default="dev", alias="ENV_NAME")
     api_host: str = Field(default="0.0.0.0", alias="API_HOST")
     api_port: int = Field(default=8000, alias="API_PORT")
 
@@ -19,6 +20,11 @@ class Settings(BaseSettings):
 
     webhook_secret: str = Field(alias="WEBHOOK_SECRET")
     webhook_tolerance_seconds: int = Field(default=300, alias="WEBHOOK_TOLERANCE_SECONDS")
+    stripe_secret_key: str
+    stripe_publishable_key: str
+    stripe_webhook_secret: str | None = None
+    stripe_connect_client_id: str | None = None
+    stripe_connected_account_id: str | None = Field(default=None, alias="STRIPE_CONNECTED_ACCOUNT_ID")
 
     cors_origins: str = Field(default="", alias="CORS_ORIGINS")
 

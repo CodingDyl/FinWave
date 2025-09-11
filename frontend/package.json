@@ -12,6 +12,7 @@
   "dependencies": {
     "@fontsource-variable/inter": "^5.2.6",
     "@fontsource-variable/jetbrains-mono": "^5.2.6",
+    "@stripe/stripe-js": "^7.9.0",
     "axios": "^1.11.0",
     "lucide-react": "^0.543.0",
     "react": "^19.1.1",

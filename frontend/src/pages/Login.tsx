@@ -57,6 +57,19 @@ export default function Login() {
             Continue with Google
           </button>
 
+          {/* Register Link */}
+          <div className="mt-4 text-center">
+            <p className="text-sm text-muted-foreground">
+              Don't have an account?{" "}
+              <button 
+                onClick={() => navigate('/register')}
+                className="text-primary hover:text-primary/80 transition-colors font-medium"
+              >
+                Create one here
+              </button>
+            </p>
+          </div>
+
           {/* Info Section */}
           <div className="mt-6 p-4 rounded-lg bg-muted/30 border border-border">
             <h3 className="text-sm font-medium text-foreground mb-2">Why Google Sign-In?</h3>

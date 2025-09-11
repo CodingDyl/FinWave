@@ -11,7 +11,7 @@ from app.models.destination import PayoutDestination
 from app.schemas.payout import PayoutCreate, PayoutOut, PayoutList
 from app.schemas.beneficiary import BeneficiaryOut
 from app.schemas.destination import DestinationOut
-from app.services.payouts import create_or_get_payout
+from app.services.payouts import create_or_get_payout, process_payout_with_stripe, cancel_payout, get_payout_status
 
 logger = logging.getLogger(__name__)
 
@@ -130,3 +130,174 @@ def list_payouts(db: Session = Depends(get_db), user=Depends(get_current_user)):
             idempotency_key=i.idempotency_key
         ) for i in items
     ])
+
+
+@router.post("/{payout_id}/process")
+def process_payout(
+    payout_id: str,
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    """Process a pending payout by creating it in Stripe"""
+    try:
+        # Verify payout belongs to user
+        payout = db.query(PayoutRequest).filter(
+            PayoutRequest.id == payout_id,
+            PayoutRequest.user_id == user.id
+        ).first()
+        
+        if not payout:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Payout not found")
+        
+        # Process the payout
+        processed_payout = process_payout_with_stripe(db, payout_id)
+        
+        # Load related data for response
+        payout_with_relations = (
+            db.query(PayoutRequest)
+            .options(
+                joinedload(PayoutRequest.beneficiary),
+                joinedload(PayoutRequest.destination)
+            )
+            .filter(PayoutRequest.id == processed_payout.id)
+            .first()
+        )
+        
+        return PayoutOut(
+            id=str(payout_with_relations.id), 
+            status=payout_with_relations.status.value.lower(), 
+            amount=payout_with_relations.amount, 
+            currency=payout_with_relations.currency,
+            beneficiary=BeneficiaryOut(
+                id=payout_with_relations.beneficiary.id,
+                type=payout_with_relations.beneficiary.type.value,
+                name=payout_with_relations.beneficiary.name,
+                email=None,
+                country=payout_with_relations.beneficiary.country
+            ),
+            destination=DestinationOut(
+                id=payout_with_relations.destination.id,
+                type=payout_with_relations.destination.type.value,
+                label=payout_with_relations.destination.label,
+                last4=payout_with_relations.destination.last4,
+                currency=payout_with_relations.destination.currency,
+                country=payout_with_relations.destination.country,
+                status=payout_with_relations.destination.status.value
+            ),
+            memo=payout_with_relations.memo,
+            external_id=payout_with_relations.external_id,
+            failure_code=payout_with_relations.failure_code,
+            failure_message=payout_with_relations.failure_message,
+            created_at=payout_with_relations.created_at.isoformat() if payout_with_relations.created_at else "",
+            idempotency_key=payout_with_relations.idempotency_key,
+            stripe_payout_id=payout_with_relations.stripe_payout_id,
+            stripe_balance_transaction=payout_with_relations.stripe_balance_transaction,
+            arrival_date=payout_with_relations.arrival_date.isoformat() if payout_with_relations.arrival_date else None,
+            processed_at=payout_with_relations.processed_at.isoformat() if payout_with_relations.processed_at else None,
+        )
+        
+    except ValueError as e:
+        logger.error(f"Validation error processing payout: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception as e:
+        logger.error(f"Unexpected error processing payout: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error")
+
+
+@router.post("/{payout_id}/cancel")
+def cancel_payout_endpoint(
+    payout_id: str,
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    """Cancel a pending or processing payout"""
+    try:
+        # Verify payout belongs to user
+        payout = db.query(PayoutRequest).filter(
+            PayoutRequest.id == payout_id,
+            PayoutRequest.user_id == user.id
+        ).first()
+        
+        if not payout:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Payout not found")
+        
+        # Cancel the payout
+        cancelled_payout = cancel_payout(db, payout_id)
+        
+        # Load related data for response
+        payout_with_relations = (
+            db.query(PayoutRequest)
+            .options(
+                joinedload(PayoutRequest.beneficiary),
+                joinedload(PayoutRequest.destination)
+            )
+            .filter(PayoutRequest.id == cancelled_payout.id)
+            .first()
+        )
+        
+        return PayoutOut(
+            id=str(payout_with_relations.id), 
+            status=payout_with_relations.status.value.lower(), 
+            amount=payout_with_relations.amount, 
+            currency=payout_with_relations.currency,
+            beneficiary=BeneficiaryOut(
+                id=payout_with_relations.beneficiary.id,
+                type=payout_with_relations.beneficiary.type.value,
+                name=payout_with_relations.beneficiary.name,
+                email=None,
+                country=payout_with_relations.beneficiary.country
+            ),
+            destination=DestinationOut(
+                id=payout_with_relations.destination.id,
+                type=payout_with_relations.destination.type.value,
+                label=payout_with_relations.destination.label,
+                last4=payout_with_relations.destination.last4,
+                currency=payout_with_relations.destination.currency,
+                country=payout_with_relations.destination.country,
+                status=payout_with_relations.destination.status.value
+            ),
+            memo=payout_with_relations.memo,
+            external_id=payout_with_relations.external_id,
+            failure_code=payout_with_relations.failure_code,
+            failure_message=payout_with_relations.failure_message,
+            created_at=payout_with_relations.created_at.isoformat() if payout_with_relations.created_at else "",
+            idempotency_key=payout_with_relations.idempotency_key,
+            stripe_payout_id=payout_with_relations.stripe_payout_id,
+            stripe_balance_transaction=payout_with_relations.stripe_balance_transaction,
+            arrival_date=payout_with_relations.arrival_date.isoformat() if payout_with_relations.arrival_date else None,
+            processed_at=payout_with_relations.processed_at.isoformat() if payout_with_relations.processed_at else None,
+        )
+        
+    except ValueError as e:
+        logger.error(f"Validation error cancelling payout: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception as e:
+        logger.error(f"Unexpected error cancelling payout: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error")
+
+
+@router.get("/{payout_id}/status")
+def get_payout_status_endpoint(
+    payout_id: str,
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    """Get detailed payout status including Stripe information"""
+    try:
+        # Verify payout belongs to user
+        payout = db.query(PayoutRequest).filter(
+            PayoutRequest.id == payout_id,
+            PayoutRequest.user_id == user.id
+        ).first()
+        
+        if not payout:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Payout not found")
+        
+        return get_payout_status(db, payout_id)
+        
+    except ValueError as e:
+        logger.error(f"Validation error getting payout status: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception as e:
+        logger.error(f"Unexpected error getting payout status: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error")

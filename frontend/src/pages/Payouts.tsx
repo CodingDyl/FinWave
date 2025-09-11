@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState, useRef } from "react";
 import DataTable, { type Column } from "../components/table/DataTable";
 import CreatePayoutModal from "../components/payouts/CreatePayoutModal";
+import PayoutTrackingModal from "../components/payouts/PayoutTrackingModal";
 import { useToast } from "../components/toast/ToastProvider";
 import { useDebouncedValue } from "../lib/useDebouncedValue";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Eye } from "lucide-react";
 import api from "../lib/api";
 import { downloadCsv } from "../lib/csv";
 import type { Payout } from "../types/index";
@@ -114,6 +115,8 @@ export default function Payouts() {
   const [loading, setLoading] = useState(false);
 
   const [open, setOpen] = useState(false);
+  const [trackingModalOpen, setTrackingModalOpen] = useState(false);
+  const [selectedPayout, setSelectedPayout] = useState<Payout | null>(null);
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<"all" | Payout["status"]>("all");
 
@@ -202,7 +205,18 @@ export default function Payouts() {
       actions: {
         header: "",
         align: "right",
-        render: () => <button className="btn btn-ghost h-8 px-2">View</button>,
+        render: (payout) => (
+          <button 
+            className="btn btn-ghost h-8 px-2"
+            onClick={() => {
+              setSelectedPayout(payout);
+              setTrackingModalOpen(true);
+            }}
+          >
+            <Eye className="w-4 h-4" />
+            View
+          </button>
+        ),
       },
     }),
     []
@@ -299,6 +313,10 @@ export default function Payouts() {
       failure_code: apiResp.failure_code,
       failure_message: apiResp.failure_message,
       idempotency_key: apiResp.idempotency_key,
+      stripe_payout_id: apiResp.stripe_payout_id,
+      stripe_balance_transaction: apiResp.stripe_balance_transaction,
+      arrival_date: apiResp.arrival_date,
+      processed_at: apiResp.processed_at,
     };
     setAllPayouts((prev) => [p, ...prev]);
     // Cache will be invalidated by the api client
@@ -306,6 +324,12 @@ export default function Payouts() {
       title: "Payout created",
       description: `Queued ${formatMoney(p.amount, p.currency)} to ${p.beneficiary.name}`,
     });
+  };
+
+  const handlePayoutUpdated = (updatedPayout: Payout) => {
+    setAllPayouts((prev) => 
+      prev.map(p => p.id === updatedPayout.id ? updatedPayout : p)
+    );
   };
 
   /* -------------------------------------- CSV export -------------------------------------- */
@@ -398,6 +422,16 @@ export default function Payouts() {
       />
 
       <CreatePayoutModal open={open} onClose={() => setOpen(false)} onCreated={handleCreated} />
+      
+      <PayoutTrackingModal 
+        open={trackingModalOpen} 
+        onClose={() => {
+          setTrackingModalOpen(false);
+          setSelectedPayout(null);
+        }} 
+        payout={selectedPayout}
+        onPayoutUpdated={handlePayoutUpdated}
+      />
     </div>
   );
 }

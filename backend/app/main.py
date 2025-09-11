@@ -10,7 +10,7 @@ from app.core.config import settings
 from app.core.logging import configure_logging
 from app.middleware.correlation import CorrelationIdMiddleware
 from app.middleware.errors import SafeErrorsMiddleware
-from app.api.v1.routes import auth, payouts, webhooks, beneficiaries, destinations
+from app.api.v1.routes import auth, payouts, webhooks, beneficiaries, destinations, stripe_public, stripe_checkout, stripe_dev
 from app.db.session import get_session
 
 def create_app() -> FastAPI:
@@ -68,6 +68,9 @@ def create_app() -> FastAPI:
     app.include_router(destinations.router, prefix="/api/v1/beneficiaries", tags=["destinations"])
     app.include_router(payouts.router, prefix="/api/v1/payouts", tags=["payouts"])
     app.include_router(webhooks.router, prefix="/api/v1/webhooks", tags=["webhooks"])
+    app.include_router(stripe_public.router, prefix="/api/v1/stripe", tags=["stripe"])
+    app.include_router(stripe_checkout.router, prefix="/api/v1/stripe", tags=["stripe"])
+    app.include_router(stripe_dev.router, tags=["stripe-dev"])
 
     @app.on_event("startup")
     async def _startup():

@@ -10,6 +10,8 @@ from app.core.config import settings
 from app.core.logging import configure_logging
 from app.middleware.correlation import CorrelationIdMiddleware
 from app.middleware.errors import SafeErrorsMiddleware
+from app.middleware.logging import LoggingMiddleware
+from app.middleware.error_handler import setup_error_handlers
 from app.api.v1.routes import auth, payouts, webhooks, beneficiaries, destinations, stripe_public, stripe_checkout, stripe_dev, connected_accounts
 from app.db.session import get_session
 
@@ -31,7 +33,11 @@ def create_app() -> FastAPI:
     app.add_middleware(SessionMiddleware, secret_key=settings.secret_key, same_site="lax", https_only=False)
 
     app.add_middleware(CorrelationIdMiddleware)
+    app.add_middleware(LoggingMiddleware)
     app.add_middleware(SafeErrorsMiddleware)
+    
+    # Set up comprehensive error handling
+    setup_error_handlers(app)
 
     # --- Health endpoints ---
     @app.get("/health", include_in_schema=False, tags=["health"])

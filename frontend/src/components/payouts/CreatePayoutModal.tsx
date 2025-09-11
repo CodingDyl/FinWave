@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useToast } from "../toast/ToastProvider";
+import { useToast } from "../toast/EnhancedToastProvider";
 import { ChevronDown } from "lucide-react";
 import { createPayout } from "../../lib/api";
 import type { Beneficiary, Destination, PayoutCreate } from "../../types/index";
@@ -201,12 +201,18 @@ export default function CreatePayoutModal({ open, onClose, onCreated }: Props) {
       onClose();
     } catch (err: any) {
       console.error("Failed to create payout:", err);
-      const errorMessage = err?.message || "Failed to create payout";
-      toast.error({
-        title: "Failed to create payout",
-        description: `Unable to create payout. ${errorMessage}`,
+      
+      // Use enhanced error handling with context
+      toast.showError(err, {
+        operation: 'payout_creation',
+        context: 'payout_creation',
+        beneficiary_id: beneficiaryId,
+        destination_id: destinationId,
+        amount: amount,
+        currency: currency
       });
-      setError(errorMessage);
+      
+      setError("Failed to create payout");
     } finally {
       setSubmitting(false);
     }

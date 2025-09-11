@@ -1,10 +1,17 @@
 from fastapi import APIRouter, Depends, Header, HTTPException, status, Request
 from sqlalchemy.orm import Session, joinedload
 from fastapi_limiter.depends import RateLimiter
-import logging
+import structlog
 
 from app.api.v1.deps import get_db, get_current_user
 from app.core.config import settings
+from app.core.errors import (
+    ValidationError, 
+    BusinessLogicError, 
+    IdempotencyError,
+    ErrorCode,
+    log_error
+)
 from app.models.payout import PayoutRequest
 from app.models.beneficiary import Beneficiary
 from app.models.destination import PayoutDestination
@@ -12,8 +19,11 @@ from app.schemas.payout import PayoutCreate, PayoutOut, PayoutList
 from app.schemas.beneficiary import BeneficiaryOut
 from app.schemas.destination import DestinationOut
 from app.services.payouts import create_or_get_payout, process_payout_with_stripe, cancel_payout, get_payout_status
+from app.services.logging_service import LoggingService, BusinessEvent
+from app.decorators.logging import log_endpoint
+from app.services.idempotency import IdempotencyService
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 router = APIRouter()
 
@@ -26,19 +36,37 @@ _rate_deps = []
 #     _rate_deps = [Depends(RateLimiter(times=5, seconds=60, identifier=_rate_id))]
 
 @router.post("", response_model=PayoutOut, dependencies=_rate_deps)
+@log_endpoint(business_event=BusinessEvent.PAYOUT_CREATED, log_payload=True)
 def create_payout(
     payload: PayoutCreate,
+    request: Request,
     db: Session = Depends(get_db),
     user=Depends(get_current_user),
     x_idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
 ):
+    # Validate idempotency key
     if not x_idempotency_key:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="missing Idempotency-Key")
+        raise ValidationError("Idempotency-Key header is required", field="idempotency_key")
     
-    logger.info(f"Creating payout for user {user.id} with idempotency key {x_idempotency_key}")
-    logger.info(f"Payload: {payload}")
+    # Validate idempotency key format
+    if not IdempotencyService.validate_key_format(x_idempotency_key):
+        raise ValidationError("Invalid idempotency key format", field="idempotency_key")
+    
+    # Log business event
+    LoggingService.log_business_event(
+        event=BusinessEvent.PAYOUT_CREATED,
+        user_id=str(user.id),
+        details={
+            "beneficiary_id": str(payload.beneficiary_id),
+            "destination_id": str(payload.destination_id),
+            "amount": float(payload.amount),
+            "currency": payload.currency,
+            "idempotency_key": x_idempotency_key
+        }
+    )
     
     try:
+        # Create or get existing payout with idempotency protection
         pr: PayoutRequest = create_or_get_payout(db, user.id, x_idempotency_key, payload)
         
         # Load related data
@@ -51,6 +79,19 @@ def create_payout(
             )
             .filter(PayoutRequest.id == pr.id)
             .first()
+        )
+        
+        # Log successful creation
+        LoggingService.log_business_event(
+            event=BusinessEvent.PAYOUT_CREATED,
+            user_id=str(user.id),
+            resource_id=str(pr.id),
+            details={
+                "payout_id": str(pr.id),
+                "status": pr.status,
+                "amount": float(pr.amount),
+                "currency": pr.currency
+            }
         )
         
         return PayoutOut(
@@ -81,12 +122,27 @@ def create_payout(
             created_at=payout_with_relations.created_at.isoformat() if payout_with_relations.created_at else "",
             idempotency_key=payout_with_relations.idempotency_key
         )
+        
     except ValueError as e:
-        logger.error(f"Validation error creating payout: {str(e)}")
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        # Log validation error
+        log_error(e, {
+            "operation": "create_payout",
+            "user_id": str(user.id),
+            "idempotency_key": x_idempotency_key,
+            "error_type": "validation"
+        })
+        raise ValidationError(str(e))
+        
     except Exception as e:
-        logger.error(f"Unexpected error creating payout: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error")
+        # Log error with context
+        log_error(e, {
+            "operation": "create_payout",
+            "user_id": str(user.id),
+            "idempotency_key": x_idempotency_key,
+            "beneficiary_id": str(payload.beneficiary_id),
+            "destination_id": str(payload.destination_id)
+        })
+        raise
 
 @router.get("", response_model=PayoutList)
 def list_payouts(db: Session = Depends(get_db), user=Depends(get_current_user)):

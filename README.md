@@ -281,31 +281,6 @@ Payout creation supports idempotency via the `Idempotency-Key` header to prevent
 | `GOOGLE_CLIENT_SECRET` | Google OAuth client secret | Yes |
 | `OAUTH_REDIRECT_URI` | OAuth redirect URI | Yes |
 
-## 📚 Documentation
-
-- **API Documentation**: Available at `/docs` when running the backend
-- **Database Schema**: See `backend/app/db/migrations/` for schema changes
-- **Frontend Components**: Documented in `frontend/src/components/`
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## 📄 License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## 🆘 Support
-
-For support and questions:
-- Create an issue in the repository
-- Check the API documentation at `/docs`
-- Review the Stripe integration guide in `infra/STRIPE_SETUP.md`
-
 ## 🔄 Changelog
 
 ### v1.0.0

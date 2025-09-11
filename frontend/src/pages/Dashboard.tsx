@@ -13,12 +13,20 @@ import {
   Users,
   CreditCard,
   UserPlus,
-  Building2
+  Building2,
+  RefreshCw
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import CreateBeneficiaryModal from "../components/beneficiaries/CreateBeneficiaryModal";
 import RecentBeneficiariesTable from "../components/beneficiaries/RecentBeneficiariesTable";
-import type { Beneficiary } from "../types/index";
+import { 
+  listPayouts, 
+  listBeneficiaries, 
+  listConnectedAccounts, 
+  getUserProfile 
+} from "../lib/api";
+import { useToast } from "../components/toast/ToastProvider";
+import type { Beneficiary, Payout, ConnectedAccount, UserProfile } from "../types/index";
 
 interface PayoutStats {
   totalPayouts: number;
@@ -29,20 +37,11 @@ interface PayoutStats {
   averageAmount: number;
 }
 
-interface RecentPayout {
-  id: string;
-  amount: number;
-  currency: string;
-  status: "pending" | "processing" | "succeeded" | "failed";
-  destination: {
-    type: "bank_account" | "mobile_money";
-    last4: string;
-  };
-  created_at: string;
-}
-
 export default function Dashboard() {
   const { user } = useAuth();
+  const { toast } = useToast();
+  
+  // State
   const [stats, setStats] = useState<PayoutStats>({
     totalPayouts: 0,
     totalAmount: 0,
@@ -51,58 +50,15 @@ export default function Dashboard() {
     failedPayouts: 0,
     averageAmount: 0
   });
-  const [recentPayouts, setRecentPayouts] = useState<RecentPayout[]>([]);
+  const [recentPayouts, setRecentPayouts] = useState<Payout[]>([]);
+  const [beneficiaries, setBeneficiaries] = useState<Beneficiary[]>([]);
+  const [connectedAccounts, setConnectedAccounts] = useState<ConnectedAccount[]>([]);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [showCreateBeneficiary, setShowCreateBeneficiary] = useState(false);
 
   useEffect(() => {
-    // Simulate API calls - replace with actual API calls
-    const fetchDashboardData = async () => {
-      try {
-        // Mock data for now - replace with actual API calls
-        setStats({
-          totalPayouts: 24,
-          totalAmount: 125000, // in cents
-          pendingPayouts: 3,
-          successfulPayouts: 20,
-          failedPayouts: 1,
-          averageAmount: 5208
-        });
-
-        setRecentPayouts([
-          {
-            id: "po_001",
-            amount: 5000,
-            currency: "ZAR",
-            status: "succeeded",
-            destination: { type: "bank_account", last4: "1234" },
-            created_at: "2025-01-10T10:30:00Z"
-          },
-          {
-            id: "po_002",
-            amount: 2500,
-            currency: "ZAR",
-            status: "pending",
-            destination: { type: "mobile_money", last4: "5678" },
-            created_at: "2025-01-10T09:15:00Z"
-          },
-          {
-            id: "po_003",
-            amount: 10000,
-            currency: "ZAR",
-            status: "processing",
-            destination: { type: "bank_account", last4: "9012" },
-            created_at: "2025-01-09T16:45:00Z"
-          }
-        ]);
-      } catch (error) {
-        console.error("Failed to fetch dashboard data:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchDashboardData();
+    refreshData();
   }, []);
 
   const formatCurrency = (amount: number, currency: string) => {
@@ -112,7 +68,7 @@ export default function Dashboard() {
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case "succeeded":
+      case "paid":
         return <CheckCircle className="size-4 text-success" />;
       case "pending":
         return <Clock className="size-4 text-warning" />;
@@ -120,6 +76,8 @@ export default function Dashboard() {
         return <Activity className="size-4 text-primary" />;
       case "failed":
         return <XCircle className="size-4 text-destructive" />;
+      case "canceled":
+        return <XCircle className="size-4 text-muted-foreground" />;
       default:
         return <AlertCircle className="size-4 text-muted-foreground" />;
     }
@@ -127,7 +85,7 @@ export default function Dashboard() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "succeeded":
+      case "paid":
         return "text-success";
       case "pending":
         return "text-warning";
@@ -135,14 +93,82 @@ export default function Dashboard() {
         return "text-primary";
       case "failed":
         return "text-destructive";
+      case "canceled":
+        return "text-muted-foreground";
       default:
         return "text-muted-foreground";
     }
   };
 
+  const refreshData = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch all data in parallel
+      const [payoutsResponse, beneficiariesData, connectedAccountsData, userProfileData] = await Promise.allSettled([
+        listPayouts(),
+        listBeneficiaries(),
+        listConnectedAccounts(),
+        getUserProfile()
+      ]);
+
+      // Process payouts data
+      if (payoutsResponse.status === 'fulfilled') {
+        const payouts = payoutsResponse.value.items || [];
+        setRecentPayouts(payouts.slice(0, 5)); // Show only recent 5
+        
+        // Calculate stats from real data
+        const totalPayouts = payouts.length;
+        const totalAmount = payouts.reduce((sum, payout) => sum + payout.amount, 0);
+        const pendingPayouts = payouts.filter(p => p.status === 'pending').length;
+        const successfulPayouts = payouts.filter(p => p.status === 'paid').length;
+        const failedPayouts = payouts.filter(p => p.status === 'failed').length;
+        const averageAmount = totalPayouts > 0 ? Math.round(totalAmount / totalPayouts) : 0;
+
+        setStats({
+          totalPayouts,
+          totalAmount,
+          pendingPayouts,
+          successfulPayouts,
+          failedPayouts,
+          averageAmount
+        });
+      }
+
+      // Process beneficiaries data
+      if (beneficiariesData.status === 'fulfilled') {
+        setBeneficiaries(beneficiariesData.value);
+      }
+
+      // Process connected accounts data
+      if (connectedAccountsData.status === 'fulfilled') {
+        setConnectedAccounts(connectedAccountsData.value);
+      }
+
+      // Process user profile data
+      if (userProfileData.status === 'fulfilled') {
+        setUserProfile(userProfileData.value);
+      }
+
+    } catch (error) {
+      console.error("Failed to refresh dashboard data:", error);
+      toast.error({
+        title: "Error",
+        description: "Failed to refresh dashboard data."
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleBeneficiaryCreated = (beneficiary: Beneficiary) => {
-    // You could refresh data here or show a success message
     console.log("Beneficiary created:", beneficiary);
+    // Refresh data to show the new beneficiary
+    refreshData();
+    toast.success({
+      title: "Beneficiary Created",
+      description: `${beneficiary.name} has been added successfully.`
+    });
   };
 
   if (loading) {
@@ -167,6 +193,14 @@ export default function Dashboard() {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <button
+            onClick={refreshData}
+            disabled={loading}
+            className="btn btn-ghost flex items-center gap-2"
+          >
+            <RefreshCw className={`size-4 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
           <button
             onClick={() => setShowCreateBeneficiary(true)}
             className="btn btn-outline flex items-center gap-2"
@@ -296,7 +330,7 @@ export default function Dashboard() {
                           {formatCurrency(payout.amount, payout.currency)}
                         </p>
                         <p className="text-sm text-muted-foreground">
-                          {payout.destination.type === "bank_account" ? "Bank Account" : "Mobile Money"} ••••{payout.destination.last4}
+                          {payout.beneficiary.name} • {payout.destination.type === "bank_account" ? "Bank Account" : "Card"} ••••{payout.destination.last4}
                         </p>
                       </div>
                     </div>
@@ -372,7 +406,25 @@ export default function Dashboard() {
                   <span className="text-sm text-muted-foreground">User ID</span>
                 </div>
                 <span className="text-sm font-medium text-foreground">
-                  {user?.user_id || "N/A"}
+                  {userProfile?.user_id || user?.user_id || "N/A"}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Users className="size-4 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">Beneficiaries</span>
+                </div>
+                <span className="text-sm font-medium text-foreground">
+                  {beneficiaries.length}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Building2 className="size-4 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">Connected Accounts</span>
+                </div>
+                <span className="text-sm font-medium text-foreground">
+                  {connectedAccounts.length}
                 </span>
               </div>
               <div className="flex items-center justify-between">

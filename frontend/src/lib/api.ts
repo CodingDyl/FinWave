@@ -161,4 +161,18 @@ export const processPayout = (payoutId: string) => api.post(`/api/v1/payouts/${p
 export const cancelPayout = (payoutId: string) => api.post(`/api/v1/payouts/${payoutId}/cancel`).then(r => r.data);
 export const getPayoutStatus = (payoutId: string) => api.get(`/api/v1/payouts/${payoutId}/status`).then(r => r.data);
 
+// API helpers for connected accounts
+export const listConnectedAccounts = () => api.get("/api/v1/connected-accounts").then(r => r.data);
+export const createExpressAccount = (payload: any) => api.post("/api/v1/connected-accounts/create-express", payload).then(r => r.data);
+export const createAccountLink = (accountId: string, refreshUrl?: string, returnUrl?: string) => 
+  api.post(`/api/v1/connected-accounts/create-account-link?account_id=${accountId}&refresh_url=${refreshUrl || 'http://localhost:5173/connected-accounts'}&return_url=${returnUrl || 'http://localhost:5173/connected-accounts'}`).then(r => r.data);
+export const addBankAccount = (accountId: string, payload: any) => 
+  api.post(`/api/v1/connected-accounts/add-bank-account?account_id=${accountId}`, payload).then(r => r.data);
+export const listExternalAccounts = (accountId: string) => api.get(`/api/v1/connected-accounts/${accountId}/external-accounts`).then(r => r.data);
+export const setDefaultAccount = (accountId: string) => api.post(`/api/v1/connected-accounts/set-default?account_id=${accountId}`).then(r => r.data);
+export const getSupportedCurrencies = () => api.get("/api/v1/connected-accounts/supported-currencies").then(r => r.data);
+
+// API helpers for user profile
+export const getUserProfile = () => api.get("/api/v1/auth/me").then(r => r.data);
+
 export default api;

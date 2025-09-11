@@ -41,8 +41,8 @@ class StripePayoutService:
         """
         try:
             # Determine which account to use for payouts
-            # For now, always use the connected account for payouts
-            connected_account_id = "acct_1S6GC5K3YPv8GzMh"  # Your connected account
+            # Use connected account from settings if available, otherwise fall back to main account
+            connected_account_id = settings.stripe_connected_account_id
             
             if connected_account_id:
                 # Use connected account for payouts

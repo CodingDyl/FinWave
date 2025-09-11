@@ -47,3 +47,54 @@ export type Payout = {
   arrival_date?: string;
   processed_at?: string;
 };
+
+export type ConnectedAccount = {
+  id: string;
+  type: "express" | "standard";
+  country: string;
+  email?: string;
+  business_type?: string;
+  business_name?: string;
+  charges_enabled: boolean;
+  payouts_enabled: boolean;
+  details_submitted: boolean;
+  requirements?: any;
+  created: number;
+  is_default: boolean;
+};
+
+export type BankAccountCreate = {
+  account_number: string;
+  routing_number?: string;
+  iban?: string;
+  bic?: string;
+  currency: string;
+  country: string;
+  account_holder_name: string;
+  account_holder_type: "individual" | "company";
+};
+
+export type ExternalAccount = {
+  id: string;
+  bank_name: string;
+  last4: string;
+  currency: string;
+  country: string;
+  status: string;
+  default_for_currency: boolean;
+};
+
+export type Currency = {
+  code: string;
+  name: string;
+  priority: number;
+  country: string;
+};
+
+export type UserProfile = {
+  user_id: number;
+  email_hash: string;
+  name?: string;
+  email?: string;
+  picture?: string;
+};

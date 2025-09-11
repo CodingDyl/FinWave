@@ -8,6 +8,7 @@ import App from "./App";
 import Dashboard from "./pages/Dashboard";
 import Payouts from "./pages/Payouts";
 import Beneficiaries from "./pages/Beneficiaries";
+import ConnectedAccounts from "./pages/ConnectedAccounts";
 import Settings from "./pages/Settings";
 
 import { ToastProvider } from "./components/toast/ToastProvider";
@@ -57,6 +58,11 @@ const router = createBrowserRouter([
       { 
         path: "beneficiaries", 
         element: <Beneficiaries />,
+        errorElement: <RouteError />
+      },
+      { 
+        path: "connected-accounts", 
+        element: <ConnectedAccounts />,
         errorElement: <RouteError />
       },
       { 

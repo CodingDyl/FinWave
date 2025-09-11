@@ -12,7 +12,8 @@ import {
   Activity,
   Users,
   CreditCard,
-  UserPlus
+  UserPlus,
+  Building2
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import CreateBeneficiaryModal from "../components/beneficiaries/CreateBeneficiaryModal";
@@ -343,6 +344,13 @@ export default function Dashboard() {
               >
                 <Users className="size-4" />
                 View All Beneficiaries
+              </Link>
+              <Link
+                to="/connected-accounts"
+                className="w-full btn btn-ghost flex items-center gap-2"
+              >
+                <Building2 className="size-4" />
+                Connect Bank Account
               </Link>
               <Link
                 to="/payouts"

@@ -1,14 +1,15 @@
 // src/pages/Login.tsx
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../features/auth/AuthContext";
-import { Chrome } from "lucide-react";
+import { Chrome, Loader2 } from "lucide-react";
 
 export default function Login() {
   const { loginWithGoogle, user, loading } = useAuth();
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const next = params.get("next") || "/";
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -18,6 +19,7 @@ export default function Login() {
   }, [user, loading, navigate, next]);
 
   function handleGoogleLogin() {
+    setIsLoggingIn(true);
     loginWithGoogle();
   }
 
@@ -51,10 +53,15 @@ export default function Login() {
           {/* Google Sign In Button */}
           <button 
             onClick={handleGoogleLogin}
-            className="w-full h-12 bg-background border border-border rounded-lg flex items-center justify-center gap-3 hover:bg-accent hover:text-accent-foreground transition-colors font-medium"
+            disabled={isLoggingIn}
+            className="w-full h-12 bg-background border border-border rounded-lg flex items-center justify-center gap-3 hover:bg-accent hover:text-accent-foreground transition-colors font-medium cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-background disabled:hover:text-foreground"
           >
-            <Chrome className="size-5" />
-            Continue with Google
+            {isLoggingIn ? (
+              <Loader2 className="size-5 animate-spin" />
+            ) : (
+              <Chrome className="size-5" />
+            )}
+            {isLoggingIn ? "Signing in..." : "Continue with Google"}
           </button>
 
           {/* Register Link */}
@@ -63,7 +70,7 @@ export default function Login() {
               Don't have an account?{" "}
               <button 
                 onClick={() => navigate('/register')}
-                className="text-primary hover:text-primary/80 transition-colors font-medium"
+                className="text-primary hover:text-primary/80 transition-colors font-medium cursor-pointer"
               >
                 Create one here
               </button>
@@ -85,11 +92,11 @@ export default function Login() {
         <div className="mt-8 text-center">
           <p className="text-xs text-muted-foreground">
             By signing in, you agree to our{" "}
-            <button className="text-primary hover:text-primary/80 transition-colors">
+            <button className="text-primary hover:text-primary/80 transition-colors cursor-pointer">
               Terms of Service
             </button>{" "}
             and{" "}
-            <button className="text-primary hover:text-primary/80 transition-colors">
+            <button className="text-primary hover:text-primary/80 transition-colors cursor-pointer">
               Privacy Policy
             </button>
           </p>

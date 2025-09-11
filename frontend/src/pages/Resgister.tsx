@@ -1,14 +1,15 @@
 // src/pages/Register.tsx
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../features/auth/AuthContext";
-import { Chrome, CheckCircle } from "lucide-react";
+import { Chrome, CheckCircle, Loader2 } from "lucide-react";
 
 export default function Register() {
   const { loginWithGoogle, user, loading } = useAuth();
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const next = params.get("next") || "/";
+  const [isSigningUp, setIsSigningUp] = useState(false);
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -18,6 +19,7 @@ export default function Register() {
   }, [user, loading, navigate, next]);
 
   function handleGoogleSignUp() {
+    setIsSigningUp(true);
     loginWithGoogle();
   }
 
@@ -51,10 +53,15 @@ export default function Register() {
           {/* Google Sign Up Button */}
           <button 
             onClick={handleGoogleSignUp}
-            className="w-full h-12 bg-background border border-border rounded-lg flex items-center justify-center gap-3 hover:bg-accent hover:text-accent-foreground transition-colors font-medium"
+            disabled={isSigningUp}
+            className="w-full h-12 bg-background border border-border rounded-lg flex items-center justify-center gap-3 hover:bg-accent hover:text-accent-foreground transition-colors font-medium cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-background disabled:hover:text-foreground"
           >
-            <Chrome className="size-5" />
-            Sign up with Google
+            {isSigningUp ? (
+              <Loader2 className="size-5 animate-spin" />
+            ) : (
+              <Chrome className="size-5" />
+            )}
+            {isSigningUp ? "Creating account..." : "Sign up with Google"}
           </button>
 
           {/* Benefits Section */}
@@ -86,7 +93,7 @@ export default function Register() {
               Already have an account?{" "}
               <Link 
                 to="/login" 
-                className="text-primary hover:text-primary/80 font-medium transition-colors"
+                className="text-primary hover:text-primary/80 font-medium transition-colors cursor-pointer"
               >
                 Sign in instead
               </Link>
@@ -98,11 +105,11 @@ export default function Register() {
         <div className="mt-8 text-center">
           <p className="text-xs text-muted-foreground">
             By creating an account, you agree to our{" "}
-            <button className="text-primary hover:text-primary/80 transition-colors">
+            <button className="text-primary hover:text-primary/80 transition-colors cursor-pointer">
               Terms of Service
             </button>{" "}
             and{" "}
-            <button className="text-primary hover:text-primary/80 transition-colors">
+            <button className="text-primary hover:text-primary/80 transition-colors cursor-pointer">
               Privacy Policy
             </button>
           </p>

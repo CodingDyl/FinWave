@@ -6,6 +6,7 @@ import { useDebouncedValue } from "../lib/useDebouncedValue";
 import { ChevronDown } from "lucide-react";
 import api from "../lib/api";
 import { downloadCsv } from "../lib/csv";
+import type { Payout } from "../types/index";
 
 /* ------------------------- Status filter dropdown (unchanged) ------------------------- */
 
@@ -80,15 +81,6 @@ function StatusDropdown({
 
 /* --------------------------------------- Types/util --------------------------------------- */
 
-type Payout = {
-  id: string;
-  created_at: string; // ISO
-  amount: number; // cents
-  currency: string;
-  destination: { type: "bank_account"; last4: string };
-  status: "pending" | "processing" | "paid" | "failed";
-};
-
 function formatMoney(cents: number, currency: string) {
   const v = (cents ?? 0) / 100;
   try {
@@ -104,14 +96,15 @@ function statusBadge(s: Payout["status"]) {
     processing: "bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-500/30",
     paid: "bg-green-500/10 text-green-700 dark:text-green-300 border-green-500/30",
     failed: "bg-destructive/10 text-destructive border-destructive/30",
+    canceled: "bg-gray-500/10 text-gray-700 dark:text-gray-300 border-gray-500/30",
   };
   return `${base} ${by[s]}`;
 }
 
 /* ----------------------------- Column visibility + IDs ----------------------------- */
 
-type ColId = "created" | "amount" | "destination" | "status" | "actions";
-const ALL_IDS: ColId[] = ["created", "amount", "destination", "status", "actions"];
+type ColId = "created" | "beneficiary" | "amount" | "destination" | "status" | "actions";
+const ALL_IDS: ColId[] = ["created", "beneficiary", "amount", "destination", "status", "actions"];
 const LS_KEY = "payouts.visibleCols";
 
 /* ===================================== Page ===================================== */
@@ -165,6 +158,20 @@ export default function Payouts() {
         sortAccessor: (r) => new Date(r.created_at),
         render: (r) => new Date(r.created_at).toLocaleString(),
       },
+      beneficiary: {
+        header: "Beneficiary",
+        sortable: true,
+        sortAccessor: (r) => r.beneficiary.name,
+        render: (r) => (
+          <div>
+            <div className="font-medium">{r.beneficiary.name}</div>
+            <div className="text-xs text-muted-foreground capitalize">
+              {r.beneficiary.type}
+              {r.beneficiary.country && ` • ${r.beneficiary.country}`}
+            </div>
+          </div>
+        ),
+      },
       amount: {
         header: "Amount",
         align: "right",
@@ -175,8 +182,16 @@ export default function Payouts() {
       destination: {
         header: "Destination",
         sortable: true,
-        sortAccessor: (r) => r.destination.last4,
-        render: (r) => <span className="text-muted-foreground">Bank •••• {r.destination.last4}</span>,
+        sortAccessor: (r) => r.destination.label,
+        render: (r) => (
+          <div>
+            <div className="font-medium">{r.destination.label}</div>
+            <div className="text-xs text-muted-foreground">
+              {r.destination.currency}
+              {r.destination.last4 && ` • ••••${r.destination.last4}`}
+            </div>
+          </div>
+        ),
       },
       status: {
         header: "Status",
@@ -205,13 +220,17 @@ export default function Payouts() {
   async function fetchPayouts() {
     setLoading(true);
     try {
+      console.log("Fetching payouts...");
       const { data } = await api.get("/api/v1/payouts", { cacheTTL: 30000 });
       const payouts = Array.isArray(data) ? data : data?.items ?? [];
+      console.log("Payouts loaded successfully:", payouts);
       setAllPayouts(payouts);
     } catch (err: any) {
+      console.error("Failed to fetch payouts:", err);
+      const errorMessage = err?.message || "Network error";
       toast.error({
         title: "Failed to load payouts",
-        description: err?.message ?? "Network error",
+        description: `Unable to load payouts. ${errorMessage}`,
       });
     } finally {
       setLoading(false);
@@ -232,14 +251,18 @@ export default function Payouts() {
       const query = debounced.toLowerCase().trim();
       filtered = filtered.filter(payout => {
         const amount = formatMoney(payout.amount, payout.currency).toLowerCase();
-        const destination = `bank •••• ${payout.destination.last4}`.toLowerCase();
+        const beneficiary = `${payout.beneficiary.name} ${payout.beneficiary.type}`.toLowerCase();
+        const destination = `${payout.destination.label} ${payout.destination.currency}`.toLowerCase();
         const statusText = payout.status.toLowerCase();
         const created = new Date(payout.created_at).toLocaleString().toLowerCase();
+        const memo = payout.memo?.toLowerCase() || "";
         
         return amount.includes(query) || 
+               beneficiary.includes(query) ||
                destination.includes(query) || 
                statusText.includes(query) || 
-               created.includes(query);
+               created.includes(query) ||
+               memo.includes(query);
       });
     }
 
@@ -262,19 +285,26 @@ export default function Payouts() {
   };
 
   const handleCreated = (apiResp: any) => {
+    console.log("Payout created:", apiResp);
     const p: Payout = {
       id: apiResp.id ?? crypto.randomUUID(),
       created_at: apiResp.created_at ?? new Date().toISOString(),
       amount: apiResp.amount,
       currency: apiResp.currency,
+      beneficiary: apiResp.beneficiary,
       destination: apiResp.destination,
       status: apiResp.status ?? "pending",
+      memo: apiResp.memo,
+      external_id: apiResp.external_id,
+      failure_code: apiResp.failure_code,
+      failure_message: apiResp.failure_message,
+      idempotency_key: apiResp.idempotency_key,
     };
     setAllPayouts((prev) => [p, ...prev]);
     // Cache will be invalidated by the api client
     toast.success({
       title: "Payout created",
-      description: `Queued ${formatMoney(p.amount, p.currency)} to •••• ${p.destination.last4}`,
+      description: `Queued ${formatMoney(p.amount, p.currency)} to ${p.beneficiary.name}`,
     });
   };
 
@@ -288,10 +318,12 @@ export default function Payouts() {
         switch (id) {
           case "created":
             return new Date(r.created_at).toLocaleString();
+          case "beneficiary":
+            return `${r.beneficiary.name} (${r.beneficiary.type})`;
           case "amount":
             return formatMoney(r.amount, r.currency);
           case "destination":
-            return `Bank •••• ${r.destination.last4}`;
+            return `${r.destination.label} (${r.destination.currency})`;
           case "status":
             return r.status;
           default:
@@ -382,7 +414,7 @@ function ColumnsMenu({
   reset: () => void;
 }) {
   const [open, setOpen] = useState(false);
-  const ids: ColId[] = ["created", "amount", "destination", "status", "actions"];
+  const ids: ColId[] = ["created", "beneficiary", "amount", "destination", "status", "actions"];
   return (
     <div className="relative">
       <button className="btn btn-ghost" onClick={() => setOpen((o) => !o)}>

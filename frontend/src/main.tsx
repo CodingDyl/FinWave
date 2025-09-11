@@ -7,6 +7,7 @@ import "./styles/globals.css";
 import App from "./App";
 import Dashboard from "./pages/Dashboard";
 import Payouts from "./pages/Payouts";
+import Beneficiaries from "./pages/Beneficiaries";
 import Settings from "./pages/Settings";
 
 import { ToastProvider } from "./components/toast/ToastProvider";
@@ -51,6 +52,11 @@ const router = createBrowserRouter([
       { 
         path: "payouts", 
         element: <Payouts />,
+        errorElement: <RouteError />
+      },
+      { 
+        path: "beneficiaries", 
+        element: <Beneficiaries />,
         errorElement: <RouteError />
       },
       { 

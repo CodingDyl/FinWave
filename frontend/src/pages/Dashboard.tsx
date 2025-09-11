@@ -11,9 +11,13 @@ import {
   ArrowUpRight,
   Activity,
   Users,
-  CreditCard
+  CreditCard,
+  UserPlus
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import CreateBeneficiaryModal from "../components/beneficiaries/CreateBeneficiaryModal";
+import RecentBeneficiariesTable from "../components/beneficiaries/RecentBeneficiariesTable";
+import type { Beneficiary } from "../types/index";
 
 interface PayoutStats {
   totalPayouts: number;
@@ -48,6 +52,7 @@ export default function Dashboard() {
   });
   const [recentPayouts, setRecentPayouts] = useState<RecentPayout[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showCreateBeneficiary, setShowCreateBeneficiary] = useState(false);
 
   useEffect(() => {
     // Simulate API calls - replace with actual API calls
@@ -134,6 +139,11 @@ export default function Dashboard() {
     }
   };
 
+  const handleBeneficiaryCreated = (beneficiary: Beneficiary) => {
+    // You could refresh data here or show a success message
+    console.log("Beneficiary created:", beneficiary);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -155,13 +165,22 @@ export default function Dashboard() {
             Welcome back! Here's your payout overview.
           </p>
         </div>
-        <Link
-          to="/payouts"
-          className="btn btn-primary flex items-center gap-2"
-        >
-          <Plus className="size-4" />
-          New Payout
-        </Link>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowCreateBeneficiary(true)}
+            className="btn btn-outline flex items-center gap-2"
+          >
+            <UserPlus className="size-4" />
+            Add Beneficiary
+          </button>
+          <Link
+            to="/payouts"
+            className="btn btn-primary flex items-center gap-2"
+          >
+            <Plus className="size-4" />
+            New Payout
+          </Link>
+        </div>
       </div>
 
       {/* Stats Grid */}
@@ -297,10 +316,20 @@ export default function Dashboard() {
 
         {/* Quick Actions & Stats */}
         <div className="space-y-6">
+          {/* Recent Beneficiaries */}
+          <RecentBeneficiariesTable limit={3} />
+
           {/* Quick Actions */}
           <div className="card p-6">
             <h3 className="text-lg font-semibold text-foreground mb-4">Quick Actions</h3>
             <div className="space-y-3">
+              <button
+                onClick={() => setShowCreateBeneficiary(true)}
+                className="w-full btn btn-outline flex items-center gap-2"
+              >
+                <UserPlus className="size-4" />
+                Add Beneficiary
+              </button>
               <Link
                 to="/payouts"
                 className="w-full btn btn-primary flex items-center gap-2"
@@ -309,8 +338,15 @@ export default function Dashboard() {
                 Create Payout
               </Link>
               <Link
+                to="/beneficiaries"
+                className="w-full btn btn-ghost flex items-center gap-2"
+              >
+                <Users className="size-4" />
+                View All Beneficiaries
+              </Link>
+              <Link
                 to="/payouts"
-                className="w-full btn btn-outline flex items-center gap-2"
+                className="w-full btn btn-ghost flex items-center gap-2"
               >
                 <Activity className="size-4" />
                 View All Payouts
@@ -353,6 +389,13 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      {/* Create Beneficiary Modal */}
+      <CreateBeneficiaryModal
+        open={showCreateBeneficiary}
+        onClose={() => setShowCreateBeneficiary(false)}
+        onCreated={handleBeneficiaryCreated}
+      />
     </div>
   );
 }

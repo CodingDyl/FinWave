@@ -1,5 +1,6 @@
 import { Menu } from "lucide-react";
 import ThemeToggle from "../../components/theme/ThemeToggle";
+import UserAvatar from "./UserAvatar";
 
 export default function Topbar({ onMenu }: { onMenu: () => void }) {
   return (
@@ -16,8 +17,7 @@ export default function Topbar({ onMenu }: { onMenu: () => void }) {
 
         <div className="ms-auto flex items-center gap-2">
           <ThemeToggle />
-          {/* Placeholder for user avatar */}
-          <div className="size-8 rounded-full bg-muted border" aria-hidden />
+          <UserAvatar />
         </div>
       </div>
     </header>

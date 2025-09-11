@@ -120,12 +120,42 @@ api.interceptors.response.use(
 export function normalizeApiError(e: unknown): { status?: number; message: string; detail?: any } {
   const anyErr = e as any;
   const status = anyErr?.response?.status ?? anyErr?.status;
-  const detail =
-    anyErr?.response?.data?.detail ??
-    anyErr?.response?.data?.message ??
-    anyErr?.message ??
-    "Request failed";
+  
+  // Enhanced error message extraction
+  let detail = "Request failed";
+  
+  if (anyErr?.response?.data?.detail) {
+    detail = anyErr.response.data.detail;
+  } else if (anyErr?.response?.data?.message) {
+    detail = anyErr.response.data.message;
+  } else if (anyErr?.response?.data?.error) {
+    detail = anyErr.response.data.error;
+  } else if (anyErr?.message) {
+    detail = anyErr.message;
+  } else if (anyErr?.error) {
+    detail = anyErr.error;
+  }
+
+  // Log the full error for debugging
+  console.error("API Error:", {
+    status,
+    message: detail,
+    originalError: anyErr,
+    response: anyErr?.response?.data,
+  });
+
   return { status, message: String(detail), detail: anyErr?.response?.data };
 }
+
+// API helpers for beneficiaries and destinations
+export const listBeneficiaries = () => api.get("/api/v1/beneficiaries").then(r => r.data);
+export const createBeneficiary = (payload: any) => api.post("/api/v1/beneficiaries", payload).then(r => r.data);
+export const updateBeneficiary = (beneficiaryId: string, payload: any) => api.put(`/api/v1/beneficiaries/${beneficiaryId}`, payload).then(r => r.data);
+export const deleteBeneficiary = (beneficiaryId: string) => api.delete(`/api/v1/beneficiaries/${beneficiaryId}`).then(r => r.data);
+export const listDestinations = (beneficiaryId: string) => api.get(`/api/v1/beneficiaries/${beneficiaryId}/destinations`).then(r => r.data);
+export const createBankDestination = (beneficiaryId: string, payload: any) => api.post(`/api/v1/beneficiaries/${beneficiaryId}/destinations`, payload).then(r => r.data);
+export const updateDestination = (destinationId: string, payload: any) => api.put(`/api/v1/destinations/${destinationId}`, payload).then(r => r.data);
+export const deleteDestination = (destinationId: string) => api.delete(`/api/v1/destinations/${destinationId}`).then(r => r.data);
+export const createPayout = (payload: any) => api.post("/api/v1/payouts", payload, { idempotencyKey: "" }).then(r => r.data);
 
 export default api;

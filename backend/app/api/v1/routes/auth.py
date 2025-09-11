@@ -34,4 +34,13 @@ async def me(request: Request, db: Session = Depends(get_session)):
         return MeOut(user_id=0, email_hash="")
     from app.models.user import User
     u = db.get(User, uid)
-    return MeOut(user_id=u.id, email_hash=u.email_hash) if u else MeOut(user_id=0, email_hash="")
+    if u:
+        return MeOut(
+            user_id=u.id, 
+            email_hash=u.email_hash,
+            name=u.name,
+            email=u.email,
+            picture=u.picture
+        )
+    else:
+        return MeOut(user_id=0, email_hash="")

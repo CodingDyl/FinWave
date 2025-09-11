@@ -1,24 +1,16 @@
 import { useEffect, useRef, useState } from "react";
 import { useToast } from "../toast/ToastProvider";
 import { ChevronDown } from "lucide-react";
-import api from "../../lib/api";
-
-type Destination = { type: "bank_account"; last4: string };
-export type CreatePayoutPayload = {
-  amount: number;           // cents (for API compatibility)
-  currency: "ZAR" | "USD" | "EUR" | "GBP";
-  destination: Destination;
-};
+import { createPayout } from "../../lib/api";
+import type { Beneficiary, Destination, PayoutCreate } from "../../types/index";
+import BeneficiarySelect from "../beneficiaries/BeneficiarySelect";
+import DestinationSelect from "../destinations/DestinationSelect";
 
 type Props = {
   open: boolean;
   onClose: () => void;
-  onCreated?: (payout: any) => void; // shape left open to match your API
+  onCreated?: (payout: any) => void;
 };
-
-function uuid() {
-  return (crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2));
-}
 
 // Currency configuration for better UX
 const CURRENCIES = [
@@ -102,13 +94,25 @@ export default function CreatePayoutModal({ open, onClose, onCreated }: Props) {
 
   const [amount, setAmount] = useState<string>("100.00");
   const [currency, setCurrency] = useState<"ZAR" | "USD" | "EUR" | "GBP">("ZAR");
-  const [last4, setLast4] = useState<string>("");
+  const [memo, setMemo] = useState<string>("");
+  const [beneficiaryId, setBeneficiaryId] = useState<string | null>(null);
+  const [destinationId, setDestinationId] = useState<string | null>(null);
+  const [selectedBeneficiary, setSelectedBeneficiary] = useState<Beneficiary | null>(null);
+  const [selectedDestination, setSelectedDestination] = useState<Destination | null>(null);
 
   useEffect(() => {
     if (open) {
       setTimeout(() => firstFieldRef.current?.focus(), 0);
       setError(null);
       setSubmitting(false);
+      // Reset form
+      setAmount("100.00");
+      setCurrency("ZAR");
+      setMemo("");
+      setBeneficiaryId(null);
+      setDestinationId(null);
+      setSelectedBeneficiary(null);
+      setSelectedDestination(null);
     }
   }, [open]);
 
@@ -120,10 +124,16 @@ export default function CreatePayoutModal({ open, onClose, onCreated }: Props) {
     return () => document.removeEventListener("keydown", onKey);
   }, [open, submitting, onClose]);
 
-  // Helper function to convert Rands to cents for API
-  const convertToCents = (randAmount: string): number => {
-    const amount = parseFloat(randAmount);
-    return Math.round(amount * 100);
+  // Reset destination when beneficiary changes
+  useEffect(() => {
+    setDestinationId(null);
+    setSelectedDestination(null);
+  }, [beneficiaryId]);
+
+  // Helper function to convert amount to cents for API
+  const convertToCents = (amount: string): number => {
+    const amountValue = parseFloat(amount);
+    return Math.round(amountValue * 100);
   };
 
   // Helper function to format currency display
@@ -150,40 +160,53 @@ export default function CreatePayoutModal({ open, onClose, onCreated }: Props) {
     if (amountValue < 0.01) {
       toast.error({
         title: "Amount too small",
-        description: "Minimum amount is R0.01.",
+        description: "Minimum amount is 0.01.",
       });
-      setError("Minimum amount is R0.01.");
+      setError("Minimum amount is 0.01.");
       return;
     }
 
-    if (!/^\d{4}$/.test(last4)) {
+    if (!beneficiaryId) {
       toast.error({
-        title: "Invalid account number",
-        description: "Please enter the last 4 digits of the account number.",
+        title: "Beneficiary required",
+        description: "Please select a beneficiary.",
       });
-      setError("Please enter the last 4 digits of the account number.");
+      setError("Please select a beneficiary.");
       return;
     }
 
-    const payload: CreatePayoutPayload = {
-      amount: convertToCents(amount), // Convert Rands to cents for API
+    if (!destinationId) {
+      toast.error({
+        title: "Destination required",
+        description: "Please select a destination.",
+      });
+      setError("Please select a destination.");
+      return;
+    }
+
+    const payload: PayoutCreate = {
+      beneficiary_id: beneficiaryId,
+      destination_id: destinationId,
+      amount: convertToCents(amount),
       currency,
-      destination: { type: "bank_account", last4 },
+      memo: memo.trim() || undefined,
     };
 
     setSubmitting(true);
     try {
-      const { data } = await api.post("/api/v1/payouts", payload, {
-        idempotencyKey: uuid(),
-      });
+      console.log("Creating payout:", payload);
+      const data = await createPayout(payload);
+      console.log("Payout created successfully:", data);
       onCreated?.(data);
       onClose();
     } catch (err: any) {
+      console.error("Failed to create payout:", err);
+      const errorMessage = err?.message || "Failed to create payout";
       toast.error({
         title: "Failed to create payout",
-        description: err?.message || "Failed to create payout",
+        description: `Unable to create payout. ${errorMessage}`,
       });
-      setError(err?.message || "Failed to create payout");
+      setError(errorMessage);
     } finally {
       setSubmitting(false);
     }
@@ -213,7 +236,7 @@ export default function CreatePayoutModal({ open, onClose, onCreated }: Props) {
             <div>
               <h2 className="text-xl font-semibold text-foreground">Create Payout</h2>
               <p className="text-sm text-muted-foreground">
-                Transfer funds to a bank account
+                Transfer funds to a saved beneficiary
               </p>
             </div>
           </div>
@@ -229,6 +252,51 @@ export default function CreatePayoutModal({ open, onClose, onCreated }: Props) {
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-5">
+          {/* Beneficiary Field */}
+          <div className="space-y-2">
+            <label className="label">Beneficiary</label>
+            <BeneficiarySelect
+              value={beneficiaryId}
+              onChange={(id) => {
+                setBeneficiaryId(id);
+                if (!id) {
+                  setSelectedBeneficiary(null);
+                }
+              }}
+              onBeneficiaryCreated={(beneficiary) => {
+                setSelectedBeneficiary(beneficiary);
+                setBeneficiaryId(beneficiary.id);
+              }}
+              onBeneficiarySelected={(beneficiary) => {
+                setSelectedBeneficiary(beneficiary);
+              }}
+              disabled={submitting}
+            />
+          </div>
+
+          {/* Destination Field */}
+          <div className="space-y-2">
+            <label className="label">Destination</label>
+            <DestinationSelect
+              beneficiaryId={beneficiaryId}
+              value={destinationId}
+              onChange={(id) => {
+                setDestinationId(id);
+                if (!id) {
+                  setSelectedDestination(null);
+                }
+              }}
+              onDestinationCreated={(destination) => {
+                setSelectedDestination(destination);
+                setDestinationId(destination.id);
+              }}
+              onDestinationSelected={(destination) => {
+                setSelectedDestination(destination);
+              }}
+              disabled={submitting}
+            />
+          </div>
+
           {/* Amount Field */}
           <div className="space-y-2">
             <label className="label" htmlFor="amount">
@@ -276,26 +344,20 @@ export default function CreatePayoutModal({ open, onClose, onCreated }: Props) {
             />
           </div>
 
-          {/* Bank Account Field */}
+          {/* Memo Field */}
           <div className="space-y-2">
-            <label className="label" htmlFor="last4">
-              Bank Account (Last 4 digits)
+            <label className="label" htmlFor="memo">
+              Memo (optional)
             </label>
             <input
-              id="last4"
-              className="input w-full tracking-widest text-center"
-              maxLength={4}
-              pattern="\d{4}"
-              inputMode="numeric"
-              value={last4}
-              onChange={(e) => setLast4(e.target.value.replace(/\D/g, "").slice(0, 4))}
-              placeholder="1234"
-              required
+              id="memo"
+              className="input w-full"
+              type="text"
+              value={memo}
+              onChange={(e) => setMemo(e.target.value)}
+              placeholder="Payment for services"
               disabled={submitting}
             />
-            <p className="text-xs text-muted-foreground">
-              Enter the last 4 digits of the destination account
-            </p>
           </div>
 
           {/* Summary */}
@@ -310,9 +372,19 @@ export default function CreatePayoutModal({ open, onClose, onCreated }: Props) {
               <span className="font-medium">{selectedCurrency?.flag} {selectedCurrency?.name}</span>
             </div>
             <div className="flex justify-between items-center text-sm">
-              <span className="text-muted-foreground">Account:</span>
-              <span className="font-medium">****{last4 || "1234"}</span>
+              <span className="text-muted-foreground">Beneficiary:</span>
+              <span className="font-medium">{selectedBeneficiary?.name || "Not selected"}</span>
             </div>
+            <div className="flex justify-between items-center text-sm">
+              <span className="text-muted-foreground">Destination:</span>
+              <span className="font-medium">{selectedDestination?.label || "Not selected"}</span>
+            </div>
+            {memo && (
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-muted-foreground">Memo:</span>
+                <span className="font-medium">{memo}</span>
+              </div>
+            )}
           </div>
 
           {/* Actions */}
@@ -327,7 +399,7 @@ export default function CreatePayoutModal({ open, onClose, onCreated }: Props) {
             </button>
             <button 
               className="btn btn-primary min-w-[100px] cursor-pointer" 
-              disabled={submitting || !amount || !last4}
+              disabled={submitting || !amount || !beneficiaryId || !destinationId}
             >
               {submitting ? (
                 <div className="flex items-center gap-2">
@@ -344,4 +416,3 @@ export default function CreatePayoutModal({ open, onClose, onCreated }: Props) {
     </div>
   );
 }
-

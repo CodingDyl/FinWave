@@ -7,7 +7,9 @@ import { useGlobalLoading } from "../../components/loading/GlobalLoading";
 export type User = { 
   user_id: number; 
   email_hash: string; 
-  email?: string; // Optional, might be available from OAuth
+  name?: string | null;
+  email?: string | null;
+  picture?: string | null;
 };
 
 type AuthCtx = {
@@ -28,7 +30,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const refreshMe = useCallback(async () => {
     try {
-      const { data: me } = await api.get<{ user_id: number; email_hash: string }>("/api/v1/auth/me");
+      const { data: me } = await api.get<User>("/api/v1/auth/me");
       // Only set user if we have a valid user_id (not 0)
       if (me && me.user_id > 0) {
         setUser(me);

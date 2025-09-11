@@ -10,7 +10,7 @@ from app.core.config import settings
 from app.core.logging import configure_logging
 from app.middleware.correlation import CorrelationIdMiddleware
 from app.middleware.errors import SafeErrorsMiddleware
-from app.api.v1.routes import auth, payouts, webhooks
+from app.api.v1.routes import auth, payouts, webhooks, beneficiaries, destinations
 from app.db.session import get_session
 
 def create_app() -> FastAPI:
@@ -64,6 +64,8 @@ def create_app() -> FastAPI:
     # --- /Health endpoints ---
 
     app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
+    app.include_router(beneficiaries.router, prefix="/api/v1/beneficiaries", tags=["beneficiaries"])
+    app.include_router(destinations.router, prefix="/api/v1/beneficiaries", tags=["destinations"])
     app.include_router(payouts.router, prefix="/api/v1/payouts", tags=["payouts"])
     app.include_router(webhooks.router, prefix="/api/v1/webhooks", tags=["webhooks"])
 

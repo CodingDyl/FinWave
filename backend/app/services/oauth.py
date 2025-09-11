@@ -34,7 +34,9 @@ async def fetch_or_create_user(request: Request, db: Session) -> User:
             claims = await oauth.google.parse_id_token(request, token)
             sub = claims["sub"]
             email = claims.get("email", "")
-            logger.info(f"User info from ID token: sub={sub}, email={email}")
+            name = claims.get("name", "")
+            picture = claims.get("picture", "")
+            logger.info(f"User info from ID token: sub={sub}, email={email}, name={name}")
         except (KeyError, Exception) as e:
             logger.warning(f"ID token parsing failed: {e}, falling back to userinfo API")
             # Fallback: get user info from Google API using access token
@@ -42,19 +44,33 @@ async def fetch_or_create_user(request: Request, db: Session) -> User:
             user_data = user_info.json()
             sub = user_data["id"]
             email = user_data.get("email", "")
-            logger.info(f"User info from userinfo API: sub={sub}, email={email}")
+            name = user_data.get("name", "")
+            picture = user_data.get("picture", "")
+            logger.info(f"User info from userinfo API: sub={sub}, email={email}, name={name}")
         
         email_hash = hash_email(email)
 
         user = db.query(User).filter(User.oauth_sub == sub).one_or_none()
         if user is None:
-            user = User(oauth_sub=sub, email_hash=email_hash)
+            user = User(
+                oauth_sub=sub, 
+                email_hash=email_hash,
+                name=name or None,
+                email=email or None,
+                picture=picture or None
+            )
             db.add(user)
             db.commit()
             db.refresh(user)
             logger.info(f"Created new user: {user.id}")
         else:
-            logger.info(f"Found existing user: {user.id}")
+            # Update existing user with latest profile info
+            user.name = name or user.name
+            user.email = email or user.email
+            user.picture = picture or user.picture
+            db.commit()
+            db.refresh(user)
+            logger.info(f"Updated existing user: {user.id}")
         return user
     except Exception as e:
         logger.error(f"OAuth user creation failed: {e}")

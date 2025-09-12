@@ -1,0 +1,12 @@
+### Health Check and System Endpoints
+### Base URL: http://localhost:8000
+
+### Health Check
+GET {{baseUrl}}/health
+
+### Example Health Response:
+# {
+#   "ok": true,
+#   "service": "finwave-api",
+#   "version": "1.0.0"
+# }

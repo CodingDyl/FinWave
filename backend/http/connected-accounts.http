@@ -1,0 +1,69 @@
+### Connected Accounts (Stripe Connect) Endpoints
+### Base URL: http://localhost:8000
+
+### List Connected Accounts
+GET {{baseUrl}}/api/v1/connected-accounts/
+Cookie: {{sessionCookie}}
+
+### Create Express Account
+POST {{baseUrl}}/api/v1/connected-accounts/create-express
+Content-Type: application/json
+Cookie: {{sessionCookie}}
+
+{
+  "type": "express",
+  "country": "US",
+  "email": "business@example.com",
+  "business_type": "individual",
+  "business_name": "Test Business"
+}
+
+### Create Account Link for Onboarding
+POST {{baseUrl}}/api/v1/connected-accounts/create-account-link?account_id={{accountId}}&refresh_url=http://localhost:5173/connected-accounts&return_url=http://localhost:5173/connected-accounts
+Cookie: {{sessionCookie}}
+
+### Add Bank Account to Connected Account
+POST {{baseUrl}}/api/v1/connected-accounts/add-bank-account?account_id={{accountId}}
+Content-Type: application/json
+Cookie: {{sessionCookie}}
+
+{
+  "account_number": "1234567890",
+  "routing_number": "110000000",
+  "iban": "GB82WEST12345698765432",
+  "bic": "DEUTDEFF",
+  "currency": "USD",
+  "country": "US",
+  "account_holder_name": "Test Account",
+  "account_holder_type": "individual"
+}
+
+### List External Accounts for Connected Account
+GET {{baseUrl}}/api/v1/connected-accounts/{{accountId}}/external-accounts
+Cookie: {{sessionCookie}}
+
+### Set Default Connected Account
+POST {{baseUrl}}/api/v1/connected-accounts/set-default?account_id={{accountId}}
+Cookie: {{sessionCookie}}
+
+### Get Supported Currencies
+GET {{baseUrl}}/api/v1/connected-accounts/supported-currencies
+
+### Example Connected Account Response:
+# {
+#   "id": "acct_1234567890",
+#   "type": "express",
+#   "country": "US",
+#   "email": "business@example.com",
+#   "business_type": "individual",
+#   "business_name": "Test Business",
+#   "charges_enabled": true,
+#   "payouts_enabled": true,
+#   "details_submitted": true,
+#   "requirements": {},
+#   "created": 1641234567,
+#   "is_default": false
+# }
+
+### Variables (set these in your environment or replace manually):
+# @accountId = acct_1234567890

@@ -1,36 +1,68 @@
-### Create payout (idempotent: first call)
+### Payout Management Endpoints
+### Base URL: http://localhost:8000
+
+### Create Payout (Idempotent)
 POST {{baseUrl}}/api/v1/payouts
 Content-Type: application/json
-Idempotency-Key: abc-123
+Idempotency-Key: {{idempotencyKey}}
 Cookie: {{sessionCookie}}
 
 {
+  "beneficiary_id": "{{beneficiaryId}}",
+  "destination_id": "{{destinationId}}",
   "amount": 1000,
-  "currency": "ZAR",
-  "destination": { "type": "bank_account", "last4": "1234" },
-  "metadata": { "order_id": "ORD-1001" }
+  "currency": "USD",
+  "memo": "Payment for services"
 }
 
-### Create payout (idempotent: same key returns same record)
-POST {{baseUrl}}/api/v1/payouts
-Content-Type: application/json
-Idempotency-Key: abc-123
+### List All Payouts
+GET {{baseUrl}}/api/v1/payouts
 Cookie: {{sessionCookie}}
 
-{
-  "amount": 1000,
-  "currency": "ZAR",
-  "destination": { "type": "bank_account", "last4": "1234" }
-}
-
-### Create payout (new key -> new payout)
-POST {{baseUrl}}/api/v1/payouts
-Content-Type: application/json
-Idempotency-Key: def-456
+### Process Payout (Create in Stripe)
+POST {{baseUrl}}/api/v1/payouts/{{payoutId}}/process
 Cookie: {{sessionCookie}}
 
-{
-  "amount": 2500,
-  "currency": "ZAR",
-  "destination": { "type": "bank_account", "last4": "9988" }
-}
+### Cancel Payout
+POST {{baseUrl}}/api/v1/payouts/{{payoutId}}/cancel
+Cookie: {{sessionCookie}}
+
+### Get Payout Status
+GET {{baseUrl}}/api/v1/payouts/{{payoutId}}/status
+Cookie: {{sessionCookie}}
+
+### Example Payout Response:
+# {
+#   "id": "payout-uuid",
+#   "status": "pending",
+#   "amount": 1000,
+#   "currency": "USD",
+#   "beneficiary": {
+#     "id": "beneficiary-uuid",
+#     "type": "individual",
+#     "name": "John Doe",
+#     "email": null,
+#     "country": "US"
+#   },
+#   "destination": {
+#     "id": "destination-uuid",
+#     "type": "bank_account",
+#     "label": "Main Checking Account",
+#     "last4": "7890",
+#     "currency": "USD",
+#     "country": "US",
+#     "status": "active"
+#   },
+#   "memo": "Payment for services",
+#   "external_id": null,
+#   "failure_code": null,
+#   "failure_message": null,
+#   "created_at": "2025-01-11T10:00:00Z",
+#   "idempotency_key": "unique-key-123"
+# }
+
+### Variables (set these in your environment or replace manually):
+# @beneficiaryId = beneficiary-uuid-here
+# @destinationId = destination-uuid-here
+# @payoutId = payout-uuid-here
+# @idempotencyKey = unique-idempotency-key-123

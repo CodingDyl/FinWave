@@ -1,26 +1,114 @@
-### Valid webhook delivery (fresh timestamp & valid signature)
-POST {{baseUrl}}/api/v1/webhooks/payouts
+### Webhook Endpoints
+### Base URL: http://localhost:8000
+
+### Generic Provider Webhook
+POST {{baseUrl}}/api/v1/webhooks/provider
 Content-Type: application/json
-X-Timestamp: {{webhookTimestamp}}
-X-Signature: {{webhookSignature}}
+Finwave-Signature: {{webhookSignature}}
 
 {
-  "type": "payout.succeeded",
+  "type": "test_event",
   "data": {
-    "payout_id": "po_01JVABCDXYZ",
-    "amount": 1000,
-    "currency": "ZAR",
-    "status": "succeeded"
+    "id": "evt_1234567890",
+    "object": "event",
+    "created": 1641234567
   }
 }
 
-### Rejected: old timestamp (expect 400)
-POST {{baseUrl}}/api/v1/webhooks/payouts
+### Stripe Webhook
+POST {{baseUrl}}/api/v1/webhooks/stripe
 Content-Type: application/json
-X-Timestamp: 1600000000
-X-Signature: v1=invalid
+Stripe-Signature: {{stripeSignature}}
 
 {
-  "type": "payout.succeeded",
-  "data": { "payout_id": "po_01JVABCDXYZ" }
+  "id": "evt_1234567890",
+  "object": "event",
+  "api_version": "2020-08-27",
+  "created": 1641234567,
+  "data": {
+    "object": {
+      "id": "po_1234567890",
+      "object": "payout",
+      "amount": 1000,
+      "currency": "usd",
+      "status": "paid"
+    }
+  },
+  "livemode": false,
+  "pending_webhooks": 1,
+  "request": {
+    "id": "req_1234567890",
+    "idempotency_key": null
+  },
+  "type": "payout.paid"
 }
+
+### Example Stripe Payout Events:
+
+### Payout Paid Event
+POST {{baseUrl}}/api/v1/webhooks/stripe
+Content-Type: application/json
+Stripe-Signature: {{stripeSignature}}
+
+{
+  "id": "evt_payout_paid",
+  "object": "event",
+  "type": "payout.paid",
+  "data": {
+    "object": {
+      "id": "po_1234567890",
+      "object": "payout",
+      "amount": 1000,
+      "currency": "usd",
+      "status": "paid",
+      "arrival_date": 1641234567,
+      "balance_transaction": "txn_1234567890"
+    }
+  }
+}
+
+### Payout Failed Event
+POST {{baseUrl}}/api/v1/webhooks/stripe
+Content-Type: application/json
+Stripe-Signature: {{stripeSignature}}
+
+{
+  "id": "evt_payout_failed",
+  "object": "event",
+  "type": "payout.failed",
+  "data": {
+    "object": {
+      "id": "po_1234567890",
+      "object": "payout",
+      "amount": 1000,
+      "currency": "usd",
+      "status": "failed",
+      "failure_code": "account_closed",
+      "failure_message": "The bank account has been closed."
+    }
+  }
+}
+
+### Payout Canceled Event
+POST {{baseUrl}}/api/v1/webhooks/stripe
+Content-Type: application/json
+Stripe-Signature: {{stripeSignature}}
+
+{
+  "id": "evt_payout_canceled",
+  "object": "event",
+  "type": "payout.canceled",
+  "data": {
+    "object": {
+      "id": "po_1234567890",
+      "object": "payout",
+      "amount": 1000,
+      "currency": "usd",
+      "status": "canceled"
+    }
+  }
+}
+
+### Variables (set these in your environment or replace manually):
+# @webhookSignature = v1=signature_hash_here
+# @stripeSignature = t=1641234567,v1=stripe_signature_hash_here

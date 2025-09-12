@@ -1,6 +1,25 @@
-### Start Google OAuth (will redirect)
-GET {{baseUrl}}/auth/google/login
+### Authentication Endpoints
+### Base URL: http://localhost:8000
 
-### (Optional for local dev) If you added a dev helper endpoint to set a session cookie:
-# GET {{baseUrl}}/auth/dev-login?sub=test-sub&email=test@example.com
-# After running this once, copy the 'Set-Cookie' value into {{sessionCookie}} in _env.http
+### Google OAuth Login (redirects to Google)
+GET {{baseUrl}}/api/v1/auth/login
+
+### OAuth Callback (handled by Google redirect)
+GET {{baseUrl}}/api/v1/auth/callback?code=GOOGLE_CODE&state=STATE
+
+### Logout
+POST {{baseUrl}}/api/v1/auth/logout
+Cookie: {{sessionCookie}}
+
+### Get Current User Info
+GET {{baseUrl}}/api/v1/auth/me
+Cookie: {{sessionCookie}}
+
+### Example Response for /me:
+# {
+#   "user_id": "123",
+#   "email_hash": "hashed_email",
+#   "name": "John Doe",
+#   "email": "john@example.com",
+#   "picture": "https://lh3.googleusercontent.com/..."
+# }

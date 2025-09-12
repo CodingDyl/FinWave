@@ -1,0 +1,32 @@
+### Beneficiaries Endpoints
+### Base URL: http://localhost:8000
+
+### Create Beneficiary
+POST {{baseUrl}}/api/v1/beneficiaries
+Content-Type: application/json
+Cookie: {{sessionCookie}}
+
+{
+  "type": "individual",
+  "name": "John Doe",
+  "email": "john@example.com",
+  "phone": "+1234567890",
+  "country": "US"
+}
+
+### List All Beneficiaries
+GET {{baseUrl}}/api/v1/beneficiaries
+Cookie: {{sessionCookie}}
+
+### Example Response:
+# [
+#   {
+#     "id": "beneficiary-uuid",
+#     "type": "individual",
+#     "name": "John Doe",
+#     "email": "john@example.com",
+#     "phone": "+1234567890",
+#     "country": "US",
+#     "created_at": "2025-01-11T10:00:00Z"
+#   }
+# ]

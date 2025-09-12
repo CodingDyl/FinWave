@@ -1,0 +1,41 @@
+### Bank Account Destinations Endpoints
+### Base URL: http://localhost:8000
+
+### Create Bank Account Destination for Beneficiary
+POST {{baseUrl}}/api/v1/beneficiaries/{{beneficiaryId}}/destinations
+Content-Type: application/json
+Cookie: {{sessionCookie}}
+
+{
+  "type": "bank_account",
+  "label": "Main Checking Account",
+  "account_number": "1234567890",
+  "routing_number": "110000000",
+  "iban": "GB82WEST12345698765432",
+  "bic": "DEUTDEFF",
+  "currency": "USD",
+  "country": "US",
+  "account_holder_name": "John Doe",
+  "account_holder_type": "individual"
+}
+
+### List Destinations for Beneficiary
+GET {{baseUrl}}/api/v1/beneficiaries/{{beneficiaryId}}/destinations
+Cookie: {{sessionCookie}}
+
+### Example Response:
+# [
+#   {
+#     "id": "destination-uuid",
+#     "type": "bank_account",
+#     "label": "Main Checking Account",
+#     "last4": "7890",
+#     "currency": "USD",
+#     "country": "US",
+#     "status": "active",
+#     "created_at": "2025-01-11T10:00:00Z"
+#   }
+# ]
+
+### Variables (set these in your environment or replace manually):
+# @beneficiaryId = beneficiary-uuid-here

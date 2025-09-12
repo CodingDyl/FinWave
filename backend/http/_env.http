@@ -2,3 +2,12 @@
 @sessionCookie = session=REPLACE_ME_AFTER_LOGIN
 @webhookSignature = v1=replace_me
 @webhookTimestamp = 1736284800
+
+### Additional Variables for Testing
+@beneficiaryId = beneficiary-uuid-here
+@destinationId = destination-uuid-here
+@payoutId = payout-uuid-here
+@accountId = acct_1234567890
+@connectedAccountId = acct_1234567890
+@idempotencyKey = unique-idempotency-key-123
+@stripeSignature = t=1641234567,v1=stripe_signature_hash_here

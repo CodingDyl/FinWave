@@ -1,0 +1,78 @@
+### Stripe Development/Testing Endpoints
+### Base URL: http://localhost:8000
+### Note: These endpoints are only available in development mode
+
+### Setup Main Account (Add External Accounts)
+POST {{baseUrl}}/api/v1/stripe/dev/setup-main-account
+
+### Create Test Payout from Main Account
+POST {{baseUrl}}/api/v1/stripe/dev/test-payout?amount=100&currency=usd
+
+### Get Test Account Info
+GET {{baseUrl}}/api/v1/stripe/dev/test-account
+
+### Set Connected Account ID
+POST {{baseUrl}}/api/v1/stripe/dev/set-connected-account?account_id={{connectedAccountId}}
+
+### Get Connected Account Info
+GET {{baseUrl}}/api/v1/stripe/dev/connected-account
+
+### Check Currency Support
+GET {{baseUrl}}/api/v1/stripe/dev/check-currency-support?currency=usd
+
+### Get Main Account Info and External Accounts
+GET {{baseUrl}}/api/v1/stripe/dev/main-account-info
+
+### Create Connected Account (Express)
+POST {{baseUrl}}/api/v1/stripe/dev/create-connected-account
+Content-Type: application/json
+
+{
+  "country": "US",
+  "business_type": "individual"
+}
+
+### Attach Test Bank Account
+POST {{baseUrl}}/api/v1/stripe/dev/attach-test-bank
+Content-Type: application/json
+
+{
+  "account_id": "{{connectedAccountId}}",
+  "routing_number": "110000000",
+  "account_number": "000123456789",
+  "currency": "usd",
+  "holder_name": "Jenny Rosen",
+  "holder_type": "individual",
+  "country": "US"
+}
+
+### Fund Connected Account
+POST {{baseUrl}}/api/v1/stripe/dev/fund
+Content-Type: application/json
+
+{
+  "account_id": "{{connectedAccountId}}",
+  "amount": 1000,
+  "currency": "usd",
+  "description": "Test funding"
+}
+
+### Create Payout from Connected Account
+POST {{baseUrl}}/api/v1/stripe/dev/payout
+Content-Type: application/json
+
+{
+  "account_id": "{{connectedAccountId}}",
+  "amount": 500,
+  "currency": "usd",
+  "method": "standard"
+}
+
+### List External Accounts
+GET {{baseUrl}}/api/v1/stripe/dev/external-accounts?account_id={{connectedAccountId}}
+
+### Get Account Balance
+GET {{baseUrl}}/api/v1/stripe/dev/balance?account_id={{connectedAccountId}}
+
+### Variables (set these in your environment or replace manually):
+# @connectedAccountId = acct_1234567890
